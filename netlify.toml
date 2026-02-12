@@ -1,3 +1,8 @@
 [build]
-  command = "echo 'Deploying pre-built Flutter web app'"
+  command = "echo 'Deploying Flutter web'"
   publish = "build/web"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
