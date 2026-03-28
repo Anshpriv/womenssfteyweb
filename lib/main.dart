@@ -19,6 +19,7 @@ class GuardianApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A premium dark theme tailored for the Guardian dashboard
     final baseTheme = ThemeData.dark();
 
     return MaterialApp(
@@ -26,11 +27,13 @@ class GuardianApp extends StatelessWidget {
       title: 'Shrimati Setu Guardian',
       theme: baseTheme.copyWith(
         colorScheme: baseTheme.colorScheme.copyWith(
-          primary: Colors.pinkAccent,
-          secondary: Colors.pinkAccent,
+          primary: const Color(0xFFFF5F8A),
+          secondary: const Color(0xFF9D65FF), // adding a purple secondary
+          surface: const Color(0xFF1A102D),   // improved surface color
         ),
-        textTheme: GoogleFonts.interTextTheme(baseTheme.textTheme),
-        scaffoldBackgroundColor: const Color(0xFF050014),
+        // Switch to Outfit or Inter, Outfit gives a more modern/tech/premium feel.
+        textTheme: GoogleFonts.outfitTextTheme(baseTheme.textTheme),
+        scaffoldBackgroundColor: const Color(0xFF030014), // darker, deep space black
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
           elevation: 0,
