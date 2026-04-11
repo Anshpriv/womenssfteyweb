@@ -120,16 +120,16 @@ class _UserDetailPanel extends StatelessWidget {
         .orderBy('time', descending: true)
         .limit(1);
 
-    final liveLocationRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('live_location');
+    final userDocRef = FirebaseFirestore.instance.collection('users').doc(userId);
+
+    final liveLocationRef = userDocRef.collection('live_location');
+    final rootLiveLocationQuery = FirebaseFirestore.instance
+        .collection('live_location')
+        .where('userId', isEqualTo: userId);
 
     final recordingsQuery = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('incidents')
-        .orderBy('time', descending: true)
+        .collection('recordings')
+        .where('userId', isEqualTo: userId)
         .limit(10);
 
     final size = MediaQuery.of(context).size;
@@ -210,223 +210,304 @@ class _UserDetailPanel extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 24),
 
-                // Top cards
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 5,
-                      child: _GlassCard(
-                        padding: const EdgeInsets.all(24),
-                        child: StreamBuilder<QuerySnapshot>(
-                          stream: sosQuery.snapshots(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const _CardLoader(label: 'Fetching SOS...');
-                            }
+                StreamBuilder<DocumentSnapshot>(
+                  stream: userDocRef.snapshots(),
+                  builder: (context, snapshot) {
+                    final user = FirebaseAuth.instance.currentUser;
+                    final userData = snapshot.data?.data() as Map<String, dynamic>? ?? {};
+                    final displayName = (userData['displayName'] ?? user?.displayName ?? 'Guardian').toString();
+                    final email = (userData['email'] ?? user?.email ?? 'No email').toString();
+                    final avatarUrl = (userData['photoUrl'] ?? userData['avatarUrl'] ?? userData['imageUrl'] ?? user?.photoURL ?? '').toString();
+                    final initials = displayName.isNotEmpty ? displayName.trim().split(' ').map((p) => p.isNotEmpty ? p[0] : '').join() : 'G';
 
-                            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                              return const _CardEmptyState(
-                                title: 'No SOS Data',
-                                subtitle: 'Everything is fine. The latest SOS will appear here.',
-                                icon: Icons.verified_user_rounded,
-                                iconColor: Colors.greenAccent,
-                              );
-                            }
-
-                            final doc = snapshot.data!.docs.first;
-                            final data = doc.data() as Map<String, dynamic>? ?? {};
-                            final time = data['time'];
-                            final triggerType = (data['triggerType'] ?? 'Unknown').toString();
-                            final status = (data['status'] ?? 'Pending').toString();
-                            final lat = data['lat'];
-                            final lng = data['lng'];
-                            final address = (data['address'] ?? 'Not available').toString();
-                            final mapLink = (data['map'] ?? '').toString();
-
-                            String timeText = '';
-                            if (time != null && time is Timestamp) {
-                              timeText = time.toDate().toLocal().toString().split('.').first;
-                            }
-
-                            Color statusColor = Colors.redAccent;
-                            bool isResolved = false;
-                            switch (status.toLowerCase()) {
-                              case 'resolved':
-                                statusColor = Colors.greenAccent;
-                                isResolved = true;
-                                break;
-                              case 'in_progress':
-                                statusColor = Colors.orangeAccent;
-                                break;
-                              default:
-                                statusColor = const Color(0xFFFF416C);
-                            }
-
-                            return Column(
+                    return _GlassCard(
+                      padding: const EdgeInsets.all(24),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 32,
+                            backgroundColor: Colors.deepPurple.shade700,
+                            foregroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                            child: avatarUrl.isEmpty
+                                ? Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))
+                                : null,
+                          ),
+                          const SizedBox(width: 18),
+                          Expanded(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                Text(
+                                  displayName,
+                                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  email,
+                                  style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 13),
+                                ),
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 8,
                                   children: [
-                                    const _CardTitle(
-                                      title: 'Latest SOS Alert',
-                                      icon: Icons.emergency_share_rounded,
-                                      accent: Color(0xFFFF416C),
+                                    _StatusPill(icon: Icons.verified_user_rounded, label: 'Guardian', color: const Color(0xFFA178FF)),
+                                    _StatusPill(icon: Icons.location_on_rounded, label: 'Live tracking', color: const Color(0xFF5F9EFF)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 30),
+
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 950;
+                    return Wrap(
+                      spacing: 24,
+                      runSpacing: 24,
+                      children: [
+                        SizedBox(
+                          width: isNarrow ? constraints.maxWidth : constraints.maxWidth * 0.58,
+                          child: _GlassCard(
+                            padding: const EdgeInsets.all(24),
+                            child: StreamBuilder<QuerySnapshot>(
+                              stream: sosQuery.snapshots(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return const _CardLoader(label: 'Fetching SOS...');
+                                }
+
+                                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                                  return const _CardEmptyState(
+                                    title: 'No SOS Data',
+                                    subtitle: 'Everything is fine. The latest SOS will appear here.',
+                                    icon: Icons.verified_user_rounded,
+                                    iconColor: Colors.greenAccent,
+                                  );
+                                }
+
+                                final doc = snapshot.data!.docs.first;
+                                final data = doc.data() as Map<String, dynamic>? ?? {};
+                                final time = data['time'];
+                                final triggerType = (data['triggerType'] ?? 'Unknown').toString();
+                                final status = (data['status'] ?? 'Pending').toString();
+                                final lat = data['lat'];
+                                final lng = data['lng'];
+                                final address = (data['address'] ?? 'Not available').toString();
+                                final mapLink = (data['map'] ?? '').toString();
+
+                                String timeText = '';
+                                if (time != null && time is Timestamp) {
+                                  timeText = time.toDate().toLocal().toString().split('.').first;
+                                }
+
+                                Color statusColor = Colors.redAccent;
+                                bool isResolved = false;
+                                switch (status.toLowerCase()) {
+                                  case 'resolved':
+                                    statusColor = Colors.greenAccent;
+                                    isResolved = true;
+                                    break;
+                                  case 'in_progress':
+                                    statusColor = Colors.orangeAccent;
+                                    break;
+                                  default:
+                                    statusColor = const Color(0xFFFF416C);
+                                }
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const _CardTitle(
+                                          title: 'Latest SOS Alert',
+                                          icon: Icons.emergency_share_rounded,
+                                          accent: Color(0xFFFF416C),
+                                        ),
+                                        if (!isResolved)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: statusColor.withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(20),
+                                              border: Border.all(color: statusColor.withOpacity(0.3)),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 8, height: 8,
+                                                  decoration: BoxDecoration(
+                                                    color: statusColor,
+                                                    shape: BoxShape.circle,
+                                                    boxShadow: [
+                                                      BoxShadow(color: statusColor, blurRadius: 4),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  status.toUpperCase(),
+                                                  style: TextStyle(
+                                                    color: statusColor, fontSize: 11, fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                    if (!isResolved)
+                                    const SizedBox(height: 24),
+                                    _InfoRow('Time', timeText),
+                                    _InfoRow('Trigger', triggerType),
+                                    _InfoRow('Location', lat != null && lng != null ? '$lat, $lng' : 'Not available'),
+                                    _InfoRow('Address', address),
+                                    const SizedBox(height: 24),
+                                    if (mapLink.isNotEmpty)
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          onPressed: () async {
+                                            final uri = Uri.tryParse(mapLink);
+                                            if (uri != null && await canLaunchUrl(uri)) {
+                                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                            }
+                                          },
+                                          icon: const Icon(Icons.map_rounded, size: 18),
+                                          label: const Text('Open Coordinates in Maps'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white.withOpacity(0.1),
+                                            foregroundColor: Colors.white,
+                                            elevation: 0,
+                                            padding: const EdgeInsets.symmetric(vertical: 14),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(14),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: isNarrow ? constraints.maxWidth : constraints.maxWidth * 0.38,
+                          child: _GlassCard(
+                            padding: const EdgeInsets.all(24),
+                            child: StreamBuilder<QuerySnapshot>(
+                              stream: liveLocationRef.snapshots(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return const _CardLoader(label: 'Linking satellite...');
+                                }
+
+                                Widget buildTelemetry(List<QueryDocumentSnapshot> docs) {
+                                  docs.sort((a, b) {
+                                    final aData = a.data() as Map<String, dynamic>? ?? {};
+                                    final bData = b.data() as Map<String, dynamic>? ?? {};
+                                    final aTime = aData['updatedAt'] ?? aData['time'];
+                                    final bTime = bData['updatedAt'] ?? bData['time'];
+                                    if (aTime == null || bTime == null) return 0;
+                                    return (bTime as Timestamp).compareTo(aTime as Timestamp);
+                                  });
+
+                                  final doc = docs.first;
+                                  final data = doc.data() as Map<String, dynamic>? ?? {};
+                                  final lat = data['lat'];
+                                  final lng = data['lng'];
+                                  final lastUpdated = data['updatedAt'] ?? data['time'];
+
+                                  String timeText = '';
+                                  if (lastUpdated != null && lastUpdated is Timestamp) {
+                                    final dt = lastUpdated.toDate().toLocal();
+                                    timeText = '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
+                                  }
+
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const _CardTitle(
+                                        title: 'Live Telemetry',
+                                        icon: Icons.my_location_rounded,
+                                        accent: Colors.lightBlueAccent,
+                                      ),
+                                      const SizedBox(height: 24),
+                                      _InfoRow('Coordinates', lat != null && lng != null ? '$lat, $lng' : 'Unknown'),
+                                      _InfoRow('Last ping', timeText),
+                                      const SizedBox(height: 32),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        padding: const EdgeInsets.all(14),
                                         decoration: BoxDecoration(
-                                          color: statusColor.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(color: statusColor.withOpacity(0.3)),
+                                          borderRadius: BorderRadius.circular(14),
+                                          color: Colors.lightBlueAccent.withOpacity(0.08),
+                                          border: Border.all(color: Colors.lightBlueAccent.withOpacity(0.15)),
                                         ),
                                         child: Row(
                                           children: [
                                             Container(
-                                              width: 8, height: 8,
+                                              padding: const EdgeInsets.all(6),
                                               decoration: BoxDecoration(
-                                                color: statusColor,
+                                                color: Colors.lightBlueAccent.withOpacity(0.2),
                                                 shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(color: statusColor, blurRadius: 4),
-                                                ],
                                               ),
+                                              child: const Icon(Icons.info_outline, color: Colors.lightBlueAccent, size: 16),
                                             ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              status.toUpperCase(),
-                                              style: TextStyle(
-                                                color: statusColor, fontSize: 11, fontWeight: FontWeight.bold,
+                                            const SizedBox(width: 12),
+                                            const Expanded(
+                                              child: Text(
+                                                'Active polling keeps these coordinates alive in real-time.',
+                                                style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                  ],
-                                ),
-                                const SizedBox(height: 24),
-                                _InfoRow('Time', timeText),
-                                _InfoRow('Trigger', triggerType),
-                                _InfoRow('Location', lat != null && lng != null ? '$lat, $lng' : 'Not available'),
-                                _InfoRow('Address', address),
-                                const SizedBox(height: 24),
-                                if (mapLink.isNotEmpty)
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () {},
-                                      icon: const Icon(Icons.map_rounded, size: 18),
-                                      label: const Text('Open Coordinates in Maps'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white.withOpacity(0.1),
-                                        foregroundColor: Colors.white,
-                                        elevation: 0,
-                                        padding: const EdgeInsets.symmetric(vertical: 14),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(14),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      flex: 4,
-                      child: _GlassCard(
-                        padding: const EdgeInsets.all(24),
-                        child: StreamBuilder<QuerySnapshot>(
-                          stream: liveLocationRef.snapshots(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const _CardLoader(label: 'Linking satellite...');
-                            }
-
-                            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                              return const _CardEmptyState(
-                                title: 'No Live Tracking',
-                                subtitle: 'Subject currently offline or tracking disabled.',
-                                icon: Icons.location_off_rounded,
-                                iconColor: Colors.white38,
-                              );
-                            }
-
-                            final docs = snapshot.data!.docs.toList();
-                            docs.sort((a, b) {
-                              final aData = a.data() as Map<String, dynamic>? ?? {};
-                              final bData = b.data() as Map<String, dynamic>? ?? {};
-                              final aTime = aData['updatedAt'] ?? aData['time'];
-                              final bTime = bData['updatedAt'] ?? bData['time'];
-                              if (aTime == null || bTime == null) return 0;
-                              return (bTime as Timestamp).compareTo(aTime as Timestamp);
-                            });
-                            
-                            final doc = docs.first;
-                            final data = doc.data() as Map<String, dynamic>? ?? {};
-                            final lat = data['lat'];
-                            final lng = data['lng'];
-                            final lastUpdated = data['updatedAt'] ?? data['time'];
-
-                            String timeText = '';
-                            if (lastUpdated != null && lastUpdated is Timestamp) {
-                              final dt = lastUpdated.toDate().toLocal();
-                              timeText = '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
-                            }
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const _CardTitle(
-                                  title: 'Live Telemetry',
-                                  icon: Icons.my_location_rounded,
-                                  accent: Colors.lightBlueAccent,
-                                ),
-                                const SizedBox(height: 24),
-                                _InfoRow('Coordinates', lat != null && lng != null ? '$lat, $lng' : 'Unknown'),
-                                _InfoRow('Last ping', timeText),
-                                const SizedBox(height: 32),
-                                Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(14),
-                                    color: Colors.lightBlueAccent.withOpacity(0.08),
-                                    border: Border.all(color: Colors.lightBlueAccent.withOpacity(0.15)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                          color: Colors.lightBlueAccent.withOpacity(0.2),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(Icons.info_outline, color: Colors.lightBlueAccent, size: 16),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      const Expanded(
-                                        child: Text(
-                                          'Active polling keeps these coordinates alive in real-time.',
-                                          style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
-                                        ),
-                                      ),
                                     ],
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
+                                  );
+                                }
+
+                                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                                  return FutureBuilder<QuerySnapshot>(
+                                    future: rootLiveLocationQuery.get(),
+                                    builder: (context, fallbackSnapshot) {
+                                      if (fallbackSnapshot.connectionState == ConnectionState.waiting) {
+                                        return const _CardLoader(label: 'Searching backup tracking...');
+                                      }
+
+                                      if (!fallbackSnapshot.hasData || fallbackSnapshot.data!.docs.isEmpty) {
+                                        return const _CardEmptyState(
+                                          title: 'No Live Tracking',
+                                          subtitle: 'Subject currently offline or tracking disabled.',
+                                          icon: Icons.location_off_rounded,
+                                          iconColor: Colors.white38,
+                                        );
+                                      }
+
+                                      return buildTelemetry(fallbackSnapshot.data!.docs.toList());
+                                    },
+                                  );
+                                }
+
+                                return buildTelemetry(snapshot.data!.docs.toList());
+                              },
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
                 // Incidents
@@ -482,17 +563,19 @@ class _UserDetailPanel extends StatelessWidget {
                                 itemBuilder: (context, index) {
                                   final doc = docs[index];
                                   final data = doc.data() as Map<String, dynamic>? ?? {};
-                                  final type = (data['type'] ?? 'Unknown format').toString();
-                                  final url = (data['url'] ?? '').toString();
+                                  final type = (data['type'] ?? data['fileName'] ?? 'Video').toString();
+                                  final url = (data['url'] ?? data['downloadUrl'] ?? data['storagePath'] ?? '').toString();
                                   final notes = (data['notes'] ?? '').toString();
-                                  final time = data['time'];
+                                  final time = data['createdAt'] ?? data['recordedAt'] ?? data['time'];
 
                                   String timeText = '';
                                   if (time != null && time is Timestamp) {
                                     timeText = time.toDate().toLocal().toString().split('.').first;
+                                  } else if (time != null) {
+                                    timeText = time.toString();
                                   }
 
-                                  final isVideo = type.toLowerCase().contains('video');
+                                  final isVideo = type.toLowerCase().contains('video') || type.toLowerCase().contains('.mp4');
 
                                   return Container(
                                     decoration: BoxDecoration(
@@ -672,6 +755,33 @@ class _CardTitle extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _StatusPill({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }
