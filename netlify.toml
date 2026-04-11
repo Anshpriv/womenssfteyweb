@@ -1,5 +1,5 @@
 [build]
-  command = "echo 'Deploying Flutter web'"
+  command = "flutter pub get && flutter build web --release"
   publish = "build/web"
 
 [[redirects]]
