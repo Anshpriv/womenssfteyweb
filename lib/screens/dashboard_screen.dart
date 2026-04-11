@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -583,15 +584,29 @@ class _UserDetailPanel extends StatelessWidget {
   }
 
   Future<void> _openMediaUrl(BuildContext context, String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid video URL.')),
-      );
-      return;
+    String resolvedUrl = url;
+    Uri? uri = Uri.tryParse(url);
+
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      try {
+        late Reference ref;
+        if (url.startsWith('gs://')) {
+          ref = FirebaseStorage.instance.refFromURL(url);
+        } else {
+          ref = FirebaseStorage.instance.ref(url);
+        }
+
+        resolvedUrl = await ref.getDownloadURL();
+        uri = Uri.tryParse(resolvedUrl);
+      } catch (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to resolve storage URL: $error')),
+        );
+        return;
+      }
     }
 
-    if (!await canLaunchUrl(uri)) {
+    if (uri == null || !await canLaunchUrl(uri)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to open the video link.')),
       );
