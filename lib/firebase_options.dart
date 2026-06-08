@@ -7,9 +7,9 @@ class DefaultFirebaseOptions {
     if (kIsWeb) {
       return const FirebaseOptions(
         apiKey: "AIzaSyC587I5tZQXGCDawJDJoAumLOnkzV_OVug",
-        authDomain: "womensafetyapp-990d4.firebaseapp.com",
-        projectId: "womensafetyapp-990d4",
-        storageBucket: "womensafetyapp-990d4.firebasestorage.app",
+        authDomain: "truckproject-8e5e8.firebaseapp.com",
+        projectId: "truckproject-8e5e8",
+        storageBucket: "truckproject-8e5e8.firebasestorage.app",
         messagingSenderId: "4890750983",
         appId: "1:4890750983:web:b0ca260a5987f28a0b3aa2",
         measurementId: "G-4LTKQZDB1V",
@@ -19,9 +19,9 @@ class DefaultFirebaseOptions {
     // Fallback for other platforms (mobile app)
     return const FirebaseOptions(
       apiKey: "AIzaSyC587I5tZQXGCDawJDJoAumLOnkzV_OVug",
-      authDomain: "womensafetyapp-990d4.firebaseapp.com",
-      projectId: "womensafetyapp-990d4",
-      storageBucket: "womensafetyapp-990d4.firebasestorage.app",
+      authDomain: "truckproject-8e5e8.firebaseapp.com",
+      projectId: "truckproject-8e5e8",
+      storageBucket: "truckproject-8e5e8.firebasestorage.app",
       messagingSenderId: "4890750983",
       appId: "1:4890750983:web:b0ca260a5987f28a0b3aa2",
       measurementId: "G-4LTKQZDB1V",
