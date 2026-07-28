@@ -1,6 +1,6 @@
 [build]
-  command = "echo 'Deploying Flutter web'"
-  publish = "build/web"
+  command = "npm run build"
+  publish = "dist"
 
 [[redirects]]
   from = "/*"

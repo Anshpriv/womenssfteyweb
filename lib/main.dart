@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/safe_zone_management_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +44,7 @@ class GuardianApp extends StatelessWidget {
       routes: {
         '/login': (_) => const GuardianLoginScreen(),
         '/dashboard': (_) => const GuardianDashboardScreen(),
+        '/safe_zones': (_) => const SafeZoneManagementScreen(),
       },
     );
   }
