@@ -14,7 +14,8 @@ import {
   LogOut, 
   Clock,
   Sparkles,
-  Radio
+  Radio,
+  Play
 } from 'lucide-react';
 import { db } from '../firebase';
 import { 
@@ -31,6 +32,8 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import SafeZoneMapModal from '../components/SafeZoneMapModal';
+import MediaModal from '../components/MediaModal';
+import { resolveMediaUrl } from '../supabase';
 
 export default function SafeZones({ user }) {
   const [activeTab, setActiveTab] = useState('zones'); // 'zones' | 'alerts'
@@ -38,21 +41,32 @@ export default function SafeZones({ user }) {
   const [zonesLoading, setZonesLoading] = useState(true);
   const [boundaryAlerts, setBoundaryAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
+  const [selectedMedia, setSelectedMedia] = useState(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingZone, setEditingZone] = useState(null);
 
-  // Stream Safe Zones for this guardian
+  // Stream Safe Zones for this guardian / child (safe_zones/{zoneId})
   useEffect(() => {
     if (!user?.uid) return;
     const zonesRef = collection(db, 'safe_zones');
     const q = query(zonesRef, where('guardianId', '==', user.uid));
 
     const unsub = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setSafeZones(docs);
-      setZonesLoading(false);
+      if (!snapshot.empty) {
+        const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setSafeZones(docs);
+        setZonesLoading(false);
+      } else {
+        // Try fallback where childId == user.uid or all
+        const qChild = query(zonesRef, where('childId', '==', user.uid));
+        onSnapshot(qChild, (subSnap) => {
+          const docs = subSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          setSafeZones(docs);
+          setZonesLoading(false);
+        }, () => setZonesLoading(false));
+      }
     }, (err) => {
       console.error("Safe zones stream error:", err);
       setZonesLoading(false);
@@ -60,18 +74,31 @@ export default function SafeZones({ user }) {
     return () => unsub();
   }, [user]);
 
-  // Stream Boundary Alerts
+  // Stream Boundary Alerts (boundary_alerts/{alertId})
   useEffect(() => {
     const alertsRef = collection(db, 'boundary_alerts');
     const q = query(alertsRef, orderBy('timestamp', 'desc'), limit(50));
 
     const unsub = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const docs = snapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          ...data,
+          downloadUrl: data.recordingUrl ? resolveMediaUrl(data.recordingUrl) : ''
+        };
+      });
       setBoundaryAlerts(docs);
       setAlertsLoading(false);
     }, (err) => {
       console.error("Boundary alerts stream error:", err);
-      setAlertsLoading(false);
+      // Fallback without orderBy if Firestore index is missing
+      const simpleQ = query(alertsRef, limit(50));
+      onSnapshot(simpleQ, (snap) => {
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setBoundaryAlerts(docs);
+        setAlertsLoading(false);
+      }, () => setAlertsLoading(false));
     });
     return () => unsub();
   }, []);
@@ -91,7 +118,7 @@ export default function SafeZones({ user }) {
       } else {
         // Create
         await addDoc(collection(db, 'safe_zones'), {
-          childId: 'child_placeholder',
+          childId: user.uid,
           guardianId: user.uid,
           zoneName: zoneData.zoneName,
           latitude: zoneData.latitude,
@@ -375,6 +402,8 @@ export default function SafeZones({ user }) {
             <div className="space-y-3">
               {boundaryAlerts.map((alert) => {
                 const isEntry = alert.type?.toLowerCase() === 'entered' || alert.type?.toLowerCase() === 'inside';
+                const hasRecording = Boolean(alert.downloadUrl || alert.recordingUrl);
+
                 return (
                   <div 
                     key={alert.id}
@@ -397,9 +426,24 @@ export default function SafeZones({ user }) {
                       </div>
                     </div>
 
-                    <div className="text-right font-mono text-xs shrink-0">
-                      <span className="text-slate-400 block text-[10px]">Target ID</span>
-                      <span className="text-slate-800 font-semibold text-[11px] sm:text-xs">{alert.childId || 'Protected User'}</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {hasRecording && (
+                        <button
+                          onClick={() => setSelectedMedia({
+                            type: `Boundary Alert (${alert.zoneName || 'Geofence'})`,
+                            url: alert.downloadUrl || alert.recordingUrl,
+                            timeText: formatTimestamp(alert.timestamp)
+                          })}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-colors flex items-center gap-1 active:scale-95"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>Video</span>
+                        </button>
+                      )}
+                      <div className="text-right font-mono text-xs">
+                        <span className="text-slate-400 block text-[10px]">Target ID</span>
+                        <span className="text-slate-800 font-semibold text-[11px] sm:text-xs">{alert.childId || 'Protected User'}</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -419,6 +463,14 @@ export default function SafeZones({ user }) {
             setIsModalOpen(false);
             setEditingZone(null);
           }}
+        />
+      )}
+
+      {/* Media Player Modal */}
+      {selectedMedia && (
+        <MediaModal 
+          media={selectedMedia} 
+          onClose={() => setSelectedMedia(null)} 
         />
       )}
 

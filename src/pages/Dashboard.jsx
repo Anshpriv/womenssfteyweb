@@ -13,21 +13,26 @@ import {
   ShieldAlert, 
   Activity,
   Sparkles,
-  Lock
+  Lock,
+  Phone,
+  Droplet,
+  FileText
 } from 'lucide-react';
 import { db } from '../firebase';
 import { doc, onSnapshot, collection, query, orderBy, limit, where } from 'firebase/firestore';
 import MediaModal from '../components/MediaModal';
+import { getPublicProfilePhotoUrl, resolveMediaUrl } from '../supabase';
 
 export default function Dashboard({ user }) {
   const [userData, setUserData] = useState(null);
   const [sosEvent, setSosEvent] = useState(null);
   const [sosLoading, setSosLoading] = useState(true);
+  const [liveLocation, setLiveLocation] = useState(null);
   const [recordings, setRecordings] = useState([]);
   const [recordingsLoading, setRecordingsLoading] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState(null);
 
-  // Listen to User document
+  // Listen to User document (users/{userId})
   useEffect(() => {
     if (!user?.uid) return;
     const userRef = doc(db, 'users', user.uid);
@@ -43,35 +48,79 @@ export default function Dashboard({ user }) {
     return () => unsub();
   }, [user]);
 
-  // Listen to Latest SOS Event
+  // Listen to Real-Time Live Location (liveLocations/{userId} or users/{userId}/live_location)
   useEffect(() => {
     if (!user?.uid) return;
-    const sosRef = collection(db, 'users', user.uid, 'sos_events');
-    const sosQuery = query(sosRef, orderBy('time', 'desc'), limit(1));
-    
-    const unsub = onSnapshot(sosQuery, (snapshot) => {
-      if (!snapshot.empty) {
-        const docSnap = snapshot.docs[0];
-        setSosEvent({ id: docSnap.id, ...docSnap.data() });
+    const liveLocRef = doc(db, 'liveLocations', user.uid);
+    const unsub = onSnapshot(liveLocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setLiveLocation(snapshot.data());
       } else {
-        setSosEvent(null);
+        // Fallback to subcollection users/{userId}/live_location
+        const subLocRef = doc(db, 'users', user.uid, 'live_location', 'current');
+        onSnapshot(subLocRef, (subSnap) => {
+          if (subSnap.exists()) setLiveLocation(subSnap.data());
+        });
       }
-      setSosLoading(false);
     }, (err) => {
-      console.error("SOS snapshot error:", err);
-      setSosLoading(false);
+      console.error("Live location snapshot error:", err);
     });
     return () => unsub();
   }, [user]);
 
-  // Listen to Recordings / Media Vault
+  // Listen to Latest SOS Event (sosEvents/{sosId} or users/{userId}/sos_events)
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    // First try top-level collection `sosEvents`
+    const topSosRef = collection(db, 'sosEvents');
+    const topSosQuery = query(topSosRef, where('userId', '==', user.uid), limit(1));
+    
+    const unsubTop = onSnapshot(topSosQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        const docSnap = snapshot.docs[0];
+        setSosEvent({ id: docSnap.id, ...docSnap.data() });
+        setSosLoading(false);
+      } else {
+        // Fallback to user subcollection `users/{userId}/sos_events`
+        const subSosRef = collection(db, 'users', user.uid, 'sos_events');
+        const subSosQuery = query(subSosRef, orderBy('time', 'desc'), limit(1));
+        
+        onSnapshot(subSosQuery, (subSnap) => {
+          if (!subSnap.empty) {
+            const d = subSnap.docs[0];
+            setSosEvent({ id: d.id, ...d.data() });
+          } else {
+            setSosEvent(null);
+          }
+          setSosLoading(false);
+        }, () => setSosLoading(false));
+      }
+    }, (err) => {
+      console.error("SOS snapshot error:", err);
+      setSosLoading(false);
+    });
+
+    return () => unsubTop();
+  }, [user]);
+
+  // Listen to Recordings / Media Vault (recordings/{recordId})
   useEffect(() => {
     if (!user?.uid) return;
     const recRef = collection(db, 'recordings');
-    const recQuery = query(recRef, where('userId', '==', user.uid), limit(10));
+    const recQuery = query(recRef, where('userId', '==', user.uid), limit(20));
 
     const unsub = onSnapshot(recQuery, (snapshot) => {
-      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const docs = snapshot.docs.map(d => {
+        const data = d.data();
+        const rawUrl = data.downloadUrl || data.storagePath || data.fileName || '';
+        const resolvedUrl = resolveMediaUrl(rawUrl, user.uid);
+        return { 
+          id: d.id, 
+          ...data,
+          downloadUrl: resolvedUrl 
+        };
+      });
       setRecordings(docs);
       setRecordingsLoading(false);
     }, (err) => {
@@ -81,9 +130,17 @@ export default function Dashboard({ user }) {
     return () => unsub();
   }, [user]);
 
-  const displayName = userData?.displayName || user?.displayName || 'Guardian User';
+  const displayName = userData?.name || userData?.displayName || user?.displayName || 'Protected User';
+  const phone = userData?.phone || '';
+  const bloodGroup = userData?.bloodGroup || '';
+  const emergencyNote = userData?.emergencyNote || '';
   const email = userData?.email || user?.email || 'No email provided';
-  const avatarUrl = userData?.photoUrl || userData?.avatarUrl || userData?.imageUrl || user?.photoURL || '';
+  
+  // Public profile photo link in Supabase recordings bucket
+  const avatarUrl = userData?.photoUrl 
+    ? resolveMediaUrl(userData.photoUrl, user?.uid) 
+    : (user?.uid ? getPublicProfilePhotoUrl(user.uid) : '');
+    
   const initials = displayName ? displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'G';
 
   // SOS status formatting
@@ -172,31 +229,53 @@ export default function Dashboard({ user }) {
               <img 
                 src={avatarUrl} 
                 alt={displayName} 
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover ring-2 ring-[#FF5F8A]/40 shadow-md"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = getPublicProfilePhotoUrl(user?.uid);
+                }}
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-2 ring-[#FF5F8A]/40 shadow-md bg-slate-100"
               />
             ) : (
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#FF5F8A] to-purple-600 flex items-center justify-center text-white font-black text-lg sm:text-xl shadow-md">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#FF5F8A] to-purple-600 flex items-center justify-center text-white font-black text-xl shadow-md">
                 {initials}
               </div>
             )}
-            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-emerald-500 border-2 border-white rounded-full" />
+            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" />
           </div>
 
-          <div className="flex-1 space-y-1 min-w-0">
-            <h3 className="text-lg sm:text-xl font-bold text-slate-900 truncate">
-              {displayName}
-            </h3>
+          <div className="flex-1 space-y-1.5 min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-900 truncate">
+                {displayName}
+              </h3>
+              {liveLocation && (liveLocation.latitude || liveLocation.lat) && (
+                <span className="px-3 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full flex items-center gap-1.5 animate-pulse">
+                  <Radar className="w-3.5 h-3.5" />
+                  Live GPS: {(liveLocation.latitude || liveLocation.lat).toFixed(4)}, {(liveLocation.longitude || liveLocation.lng).toFixed(4)}
+                </span>
+              )}
+            </div>
+
             <p className="text-xs text-slate-500 font-mono truncate">
-              {email}
+              {email} {phone && `• ${phone}`}
             </p>
+
             <div className="pt-2 flex flex-wrap items-center gap-2">
+              {bloodGroup && (
+                <span className="px-2.5 py-1 text-[11px] sm:text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-full flex items-center gap-1">
+                  <Droplet className="w-3.5 h-3.5 text-rose-500" />
+                  Blood: {bloodGroup}
+                </span>
+              )}
+              {emergencyNote && (
+                <span className="px-2.5 py-1 text-[11px] sm:text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-full flex items-center gap-1 truncate max-w-xs">
+                  <FileText className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  Note: {emergencyNote}
+                </span>
+              )}
               <span className="px-2.5 py-1 text-[11px] sm:text-xs font-semibold text-purple-700 bg-purple-50/90 border border-purple-200/90 rounded-full flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                Verified Guardian
-              </span>
-              <span className="px-2.5 py-1 text-[11px] sm:text-xs font-semibold text-blue-700 bg-blue-50/90 border border-blue-200/90 rounded-full flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" />
-                Live Tracking Enabled
+                Verified Protection
               </span>
             </div>
           </div>
@@ -237,58 +316,65 @@ export default function Dashboard({ user }) {
                   Everything is clear. The protected individual has not triggered any emergency signals.
                 </p>
               </div>
-            ) : (
-              <div className="space-y-4 text-xs">
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            ) : (() => {
+              const sosLat = sosEvent.latitude ?? sosEvent.lat;
+              const sosLng = sosEvent.longitude ?? sosEvent.lng;
+              const sosTrigger = sosEvent.trigger_type || sosEvent.triggerType || 'Manual Emergency';
+              const sosTime = sosEvent.timestamp || sosEvent.time || sosEvent.createdAt;
+
+              return (
+                <div className="space-y-4 text-xs">
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-white/80 border border-slate-200 shadow-sm space-y-1">
+                      <span className="text-slate-500 font-semibold block text-[11px]">Timestamp</span>
+                      <span className="text-slate-900 font-medium flex items-center gap-1.5 truncate">
+                        <Clock className="w-3.5 h-3.5 text-[#FF5F8A] shrink-0" />
+                        {formatTimestamp(sosTime)}
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-white/80 border border-slate-200 shadow-sm space-y-1">
+                      <span className="text-slate-500 font-semibold block text-[11px]">Trigger Type</span>
+                      <span className="text-slate-900 font-medium capitalize flex items-center gap-1.5 truncate">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        {sosTrigger}
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="p-3.5 sm:p-4 rounded-2xl bg-white/80 border border-slate-200 shadow-sm space-y-1">
-                    <span className="text-slate-500 font-semibold block text-[11px]">Timestamp</span>
-                    <span className="text-slate-900 font-medium flex items-center gap-1.5 truncate">
-                      <Clock className="w-3.5 h-3.5 text-[#FF5F8A] shrink-0" />
-                      {formatTimestamp(sosEvent.time)}
+                    <span className="text-slate-500 font-semibold block text-[11px]">Coordinates</span>
+                    <span className="text-slate-900 font-mono font-medium break-all">
+                      {sosLat != null && sosLng != null
+                        ? `${sosLat}, ${sosLng}`
+                        : 'Coordinates not attached'}
                     </span>
                   </div>
 
                   <div className="p-3.5 sm:p-4 rounded-2xl bg-white/80 border border-slate-200 shadow-sm space-y-1">
-                    <span className="text-slate-500 font-semibold block text-[11px]">Trigger Type</span>
-                    <span className="text-slate-900 font-medium capitalize flex items-center gap-1.5 truncate">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      {sosEvent.triggerType || 'Manual Emergency'}
+                    <span className="text-slate-500 font-semibold block text-[11px]">Address / Location Reference</span>
+                    <span className="text-slate-900 font-medium leading-relaxed block">
+                      {sosEvent.address || 'Address telemetry missing'}
                     </span>
                   </div>
+
+                  {(sosEvent.map || (sosLat != null && sosLng != null)) && (
+                    <a
+                      href={sosEvent.map || `https://www.google.com/maps?q=${sosLat},${sosLng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-3.5 px-4 rounded-2xl font-bold text-xs text-slate-800 bg-white/80 hover:bg-white border border-slate-200 transition-colors flex items-center justify-center gap-2 group shadow-sm active:scale-95"
+                    >
+                      <MapPin className="w-4 h-4 text-[#FF5F8A]" />
+                      <span>Open Coordinates in Google Maps</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                    </a>
+                  )}
+
                 </div>
-
-                <div className="p-3.5 sm:p-4 rounded-2xl bg-white/80 border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-slate-500 font-semibold block text-[11px]">Coordinates</span>
-                  <span className="text-slate-900 font-mono font-medium break-all">
-                    {sosEvent.lat != null && sosEvent.lng != null
-                      ? `${sosEvent.lat}, ${sosEvent.lng}`
-                      : 'Coordinates not attached'}
-                  </span>
-                </div>
-
-                <div className="p-3.5 sm:p-4 rounded-2xl bg-white/80 border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-slate-500 font-semibold block text-[11px]">Address / Location Reference</span>
-                  <span className="text-slate-900 font-medium leading-relaxed block">
-                    {sosEvent.address || 'Address telemetry missing'}
-                  </span>
-                </div>
-
-                {(sosEvent.map || (sosEvent.lat && sosEvent.lng)) && (
-                  <a
-                    href={sosEvent.map || `https://www.google.com/maps?q=${sosEvent.lat},${sosEvent.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-3.5 px-4 rounded-2xl font-bold text-xs text-slate-800 bg-white/80 hover:bg-white border border-slate-200 transition-colors flex items-center justify-center gap-2 group shadow-sm active:scale-95"
-                  >
-                    <MapPin className="w-4 h-4 text-[#FF5F8A]" />
-                    <span>Open Coordinates in Google Maps</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                  </a>
-                )}
-
-              </div>
-            )}
+              );
+            })()}
 
           </div>
         </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Play, Download, Video, Mic, ExternalLink, ShieldCheck } from 'lucide-react';
 import { storage } from '../firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
+import { resolveMediaUrl } from '../supabase';
 
 export default function MediaModal({ media, onClose }) {
   const [resolvedUrl, setResolvedUrl] = useState('');
@@ -9,42 +10,21 @@ export default function MediaModal({ media, onClose }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!media || !media.url) {
-      setError("No valid URL provided");
+    const rawUrl = media?.downloadUrl || media?.url || media?.storagePath;
+    if (!rawUrl) {
+      setError("No valid video/audio URL found in document metadata");
       setLoading(false);
       return;
     }
 
-    const rawUrl = media.url;
-
-    // Check if URL is http/https or Firebase Storage GS reference / path
-    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-      setResolvedUrl(rawUrl);
+    try {
+      const url = resolveMediaUrl(rawUrl, media.userId);
+      setResolvedUrl(url);
       setLoading(false);
-    } else {
-      // Resolve Firebase Storage reference
-      try {
-        let storageRef;
-        if (rawUrl.startsWith('gs://')) {
-          storageRef = ref(storage, rawUrl);
-        } else {
-          storageRef = ref(storage, rawUrl);
-        }
-        getDownloadURL(storageRef)
-          .then((url) => {
-            setResolvedUrl(url);
-            setLoading(false);
-          })
-          .catch((err) => {
-            console.error("Storage download URL error:", err);
-            setError("Could not resolve media download link.");
-            setLoading(false);
-          });
-      } catch (err) {
-        console.error("Storage reference error:", err);
-        setError("Invalid storage reference.");
-        setLoading(false);
-      }
+    } catch (err) {
+      console.error("Media URL resolution error:", err);
+      setError("Could not resolve public media link.");
+      setLoading(false);
     }
   }, [media]);
 

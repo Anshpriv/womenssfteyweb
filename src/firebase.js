@@ -4,13 +4,12 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAp9_qurmvthIIxy4_Hi_VoKRt5snfkZ8k",
-  authDomain: "truckproject-8e5e8.firebaseapp.com",
-  projectId: "truckproject-8e5e8",
-  storageBucket: "truckproject-8e5e8.firebasestorage.app",
-  messagingSenderId: "144627799852",
-  appId: "1:144627799852:web:88e567ca85add489c27e89",
-  measurementId: "G-PE2CSPTH9D"
+  apiKey: "AIzaSyAljv6_UwP4Pz4g78bQMGKxZlHY_yVvJqQ",
+  authDomain: "shrimatisetu-dc6a7.firebaseapp.com",
+  projectId: "shrimatisetu-dc6a7",
+  storageBucket: "shrimatisetu-dc6a7.firebasestorage.app",
+  messagingSenderId: "590673217701",
+  appId: "1:590673217701:android:cc65b01402187a637de54c"
 };
 
 const app = initializeApp(firebaseConfig);
