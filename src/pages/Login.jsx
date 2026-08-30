@@ -1,18 +1,80 @@
 import React, { useState } from 'react';
-import { Shield, Mail, Lock, AlertCircle, ArrowRight, Loader2, Sparkles, Activity } from 'lucide-react';
+import {
+  GoogleAuthProvider,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+} from 'firebase/auth';
+import { Shield } from 'lucide-react';
 import { auth } from '../firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { SignInPage } from '../components/ui/sign-in';
+
+const testimonials = [
+  {
+    avatarSrc: 'https://randomuser.me/api/portraits/women/57.jpg',
+    name: 'Ananya Iyer',
+    handle: '@chennairesponse',
+    text: 'SOS alerts, live location, and media proof stay clear even during tense late-night response calls.',
+  },
+  {
+    avatarSrc: 'https://randomuser.me/api/portraits/women/44.jpg',
+    name: 'Kavya Menon',
+    handle: '@kochisafety',
+    text: 'Our volunteers can coordinate faster because every guardian sees the same verified incident timeline.',
+  },
+  {
+    avatarSrc: 'https://randomuser.me/api/portraits/women/68.jpg',
+    name: 'Meera Sharma',
+    handle: '@delhicaredesk',
+    text: 'The dashboard feels secure, quick, and practical for reviewing emergency updates with families.',
+  },
+  {
+    avatarSrc: 'https://randomuser.me/api/portraits/women/65.jpg',
+    name: 'Riya Kapoor',
+    handle: '@mumbaisentinel',
+    text: 'The alert feed is fast and readable, even when multiple SOS reports arrive together.',
+  },
+  {
+    avatarSrc: 'https://randomuser.me/api/portraits/women/76.jpg',
+    name: 'Priya Nair',
+    handle: '@bengaluruguard',
+    text: 'I like how location, evidence, and family contact details stay organized in one secure view.',
+  },
+  {
+    avatarSrc: 'https://randomuser.me/api/portraits/women/30.jpg',
+    name: 'Sneha Kulkarni',
+    handle: '@puneresponse',
+    text: 'It gives our team the confidence to act quickly without losing track of the case history.',
+  },
+  {
+    avatarSrc: 'https://randomuser.me/api/portraits/women/81.jpg',
+    name: 'Aditi Banerjee',
+    handle: '@kolkatacare',
+    text: 'The interface feels calm, serious, and built for real emergency coordination work.',
+  },
+  {
+    avatarSrc: 'https://randomuser.me/api/portraits/women/48.jpg',
+    name: 'Fatima Khan',
+    handle: '@hyderabadwatch',
+    text: 'Guardian review is smoother now because media, GPS, and status updates are easy to scan.',
+  },
+];
+
+const provider = new GoogleAuthProvider();
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleLogin = async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get('email') || '').trim();
+    const password = String(formData.get('password') || '').trim();
+
     if (!email || !password) {
-      setError('Please fill in all fields');
+      setError('Please fill in all fields.');
       return;
     }
 
@@ -20,122 +82,89 @@ export default function Login() {
     setError('');
 
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password.trim());
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
-      console.error("Login error:", err);
-      let msg = "Failed to sign in. Check your credentials.";
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        msg = "Invalid email or password.";
+      console.error('Login error:', err);
+      if (
+        err.code === 'auth/invalid-credential' ||
+        err.code === 'auth/user-not-found' ||
+        err.code === 'auth/wrong-password'
+      ) {
+        setError('Invalid email or password.');
       } else if (err.code === 'auth/invalid-email') {
-        msg = "Please enter a valid email address.";
+        setError('Please enter a valid email address.');
+      } else {
+        setError('Failed to sign in. Check your credentials and try again.');
       }
-      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      console.error('Google sign-in error:', err);
+      setError('Google sign-in could not be completed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    const email = window.prompt('Enter your guardian account email to receive a password reset link:');
+
+    if (!email) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      window.alert('Password reset email sent. Please check your inbox.');
+    } catch (err) {
+      console.error('Password reset error:', err);
+      setError('Unable to send a password reset email for that address.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateAccount = () => {
+    setError('Guardian accounts are issued by an administrator. Please contact your Shrimati Setu admin.');
+  };
+
   return (
-    <div className="relative min-h-[75vh] flex flex-col items-center justify-center py-10">
-      
-      {/* Background Glowing Rings */}
-      <div className="absolute w-[450px] h-[450px] bg-gradient-to-tr from-[#FF5F8A]/20 to-purple-600/20 rounded-full blur-[90px] pointer-events-none animate-pulse-slow" />
-
-      {/* Login Container */}
-      <div className="relative w-full max-w-md">
-        <div className="glass-panel p-8 sm:p-10 rounded-[32px] shadow-2xl relative z-10 border border-white/10 backdrop-blur-3xl bg-[#090A18]/85 space-y-6">
-          
-          {/* Header */}
-          <div className="flex items-center gap-4 border-b border-white/10 pb-6">
-            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-[#FF5F8A] via-pink-600 to-purple-600 shadow-xl shadow-[#FF5F8A]/30">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-extrabold text-white tracking-wide">
-                  Shrimati Setu
-                </h2>
-                <Sparkles className="w-4 h-4 text-[#FF5F8A]" />
-              </div>
-              <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
-                Guardian Emergency Console
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-              Sign in to Sentinel Access
-              <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
-            </h3>
-            <p className="text-xs text-slate-400 leading-relaxed font-medium">
-              Access real-time emergency SOS dispatch, live satellite GPS telemetry & encrypted media vault.
-            </p>
-          </div>
-
-          {/* Error Banner */}
-          {error && (
-            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-3 text-rose-400 text-xs font-semibold animate-shake">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-2">
-                Guardian Account Email
-              </label>
-              <div className="relative">
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="guardian@shrimatisetu.org"
-                  required
-                  className="w-full px-4 py-3.5 pl-11 rounded-2xl glass-input text-sm text-white placeholder-slate-500 font-medium"
-                />
-                <Mail className="w-4 h-4 text-slate-500 absolute left-4 top-4 pointer-events-none" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-2">
-                Security Password
-              </label>
-              <div className="relative">
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className="w-full px-4 py-3.5 pl-11 rounded-2xl glass-input text-sm text-white placeholder-slate-500 font-medium"
-                />
-                <Lock className="w-4 h-4 text-slate-500 absolute left-4 top-4 pointer-events-none" />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full mt-6 py-4 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-[#FF5F8A] via-pink-600 to-purple-600 hover:opacity-95 active:scale-[0.99] shadow-xl shadow-[#FF5F8A]/30 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 border border-white/20"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <span>Launch Sentinel Console</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </button>
-          </form>
-
-        </div>
-      </div>
-
-    </div>
+    <SignInPage
+      title={
+        <span className="flex flex-col gap-3">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-br from-[#FF5F8A] to-purple-600 shadow-xl shadow-[#FF5F8A]/30">
+            <Shield className="h-6 w-6 text-white" />
+          </span>
+          <span>
+            Shrimati Setu
+            <span className="block text-xl font-medium text-slate-400 md:text-2xl">
+              Guardian Emergency Console
+            </span>
+          </span>
+        </span>
+      }
+      description="Access real-time emergency SOS dispatch, live GPS telemetry, and encrypted media review."
+      heroImageSrc="/bg.png"
+      testimonials={testimonials}
+      error={error}
+      isLoading={loading}
+      submitLabel="Launch Sentinel Console"
+      onSignIn={handleLogin}
+      onGoogleSignIn={handleGoogleSignIn}
+      onResetPassword={handleResetPassword}
+      onCreateAccount={handleCreateAccount}
+    />
   );
 }

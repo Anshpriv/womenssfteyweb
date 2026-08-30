@@ -13,7 +13,7 @@ export default function Navbar({ currentRoute, setRoute, user }) {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-2xl bg-[#090A18]/80 border-b border-white/10 shadow-2xl shadow-black/50 transition-all">
+    <header className="sticky top-0 z-40 w-full backdrop-blur-2xl bg-black/35 border-b border-white/10 shadow-2xl shadow-black/45 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-3">
         
         {/* Brand Header */}
@@ -27,10 +27,10 @@ export default function Navbar({ currentRoute, setRoute, user }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-extrabold tracking-wide text-white group-hover:text-[#FF5F8A] transition-colors">
+              <h1 className="text-base sm:text-lg font-extrabold tracking-wide text-white group-hover:text-cyan-200 transition-colors">
                 Shrimati Setu
               </h1>
-              <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-bold tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center gap-1.5 shadow-sm">
+              <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-bold tracking-wider text-cyan-100 bg-cyan-400/10 border border-cyan-300/30 rounded-full flex items-center gap-1.5 shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 SENTINEL ACTIVE
               </span>
