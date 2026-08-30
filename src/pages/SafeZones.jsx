@@ -15,7 +15,8 @@ import {
   Clock,
   Sparkles,
   Radio,
-  Play
+  Play,
+  Navigation
 } from 'lucide-react';
 import { db } from '../firebase';
 import { 
@@ -148,7 +149,7 @@ export default function SafeZones({ user }) {
 
   // Delete Safe Zone
   const handleDeleteZone = async (zoneId) => {
-    if (!window.confirm("Are you sure you want to delete this safe zone?")) return;
+    if (!window.confirm("Are you sure you want to delete this safe zone boundary?")) return;
     try {
       await deleteDoc(doc(db, 'safe_zones', zoneId));
     } catch (err) {
@@ -177,39 +178,39 @@ export default function SafeZones({ user }) {
       {/* Header & Tabs Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            Safe Zone & Geofence Management
-            <Sparkles className="w-4 h-4 text-[#FF5F8A]" />
+          <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
+            Geofence & Safe Zone Commander
+            <Sparkles className="w-5 h-5 text-[#FF5F8A]" />
           </h2>
-          <p className="text-xs text-slate-600">
-            Define dynamic safety perimeters and monitor real-time boundary entry/exit alerts.
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            Configure automated GPS perimeter boundaries and monitor entry/exit breach logs.
           </p>
         </div>
 
-        {/* Tab Controls */}
-        <div className="flex items-center p-1 sm:p-1.5 rounded-2xl bg-white/70 border border-slate-200 shrink-0 backdrop-blur-md w-full md:w-auto">
+        {/* Tab Switch Controls */}
+        <div className="flex items-center p-1.5 rounded-2xl bg-[#090A18]/80 border border-white/10 shrink-0 backdrop-blur-md w-full md:w-auto">
           <button
             onClick={() => setActiveTab('zones')}
-            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
               activeTab === 'zones'
-                ? 'bg-gradient-to-r from-[#FF5F8A] to-purple-600 text-white shadow-md'
-                : 'text-slate-700 hover:text-slate-900'
+                ? 'bg-gradient-to-r from-[#FF5F8A] to-purple-600 text-white shadow-lg shadow-[#FF5F8A]/25 border border-white/20'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Shield className="w-4 h-4" />
-            <span>Safe Zones ({safeZones.length})</span>
+            <span>Active Zones ({safeZones.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('alerts')}
-            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
               activeTab === 'alerts'
-                ? 'bg-gradient-to-r from-[#FF5F8A] to-purple-600 text-white shadow-md'
-                : 'text-purple-700 hover:text-purple-900'
+                ? 'bg-gradient-to-r from-[#FF5F8A] to-purple-600 text-white shadow-lg shadow-purple-600/25 border border-white/20'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Bell className="w-4 h-4" />
-            <span>Alerts ({boundaryAlerts.length})</span>
+            <span>Breach Logs ({boundaryAlerts.length})</span>
           </button>
         </div>
       </div>
@@ -218,9 +219,9 @@ export default function SafeZones({ user }) {
       {activeTab === 'zones' ? (
         <div className="space-y-6">
           
-          {/* Add Zone Action Bar */}
-          <div className="flex justify-between items-center gap-2">
-            <p className="text-xs font-semibold text-slate-700">
+          {/* Action Bar */}
+          <div className="flex justify-between items-center gap-3">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
               Active Geofence Perimeters
             </p>
             <button
@@ -228,70 +229,70 @@ export default function SafeZones({ user }) {
                 setEditingZone(null);
                 setIsModalOpen(true);
               }}
-              className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl font-bold text-xs text-white bg-gradient-to-r from-[#FF5F8A] to-[#D63162] hover:opacity-90 shadow-lg shadow-[#FF5F8A]/25 transition-all active:scale-95 shrink-0"
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-xs text-white bg-gradient-to-r from-[#FF5F8A] via-pink-600 to-purple-600 hover:opacity-95 shadow-xl shadow-[#FF5F8A]/30 border border-white/20 transition-all active:scale-95 shrink-0"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Safe Zone</span>
+              <span>Create Safe Zone</span>
             </button>
           </div>
 
-          {/* Zones List */}
+          {/* Zones Grid */}
           {zonesLoading ? (
-            <div className="py-16 text-center text-slate-500 text-xs flex flex-col items-center gap-3">
+            <div className="py-16 text-center text-slate-400 text-xs flex flex-col items-center gap-3">
               <div className="w-7 h-7 border-2 border-[#FF5F8A] border-t-transparent rounded-full animate-spin" />
-              <span>Fetching safe zone configs...</span>
+              <span>Fetching safe zone boundary configurations...</span>
             </div>
           ) : safeZones.length === 0 ? (
-            <div className="glass-panel p-8 sm:p-12 text-center rounded-2xl sm:rounded-3xl space-y-4">
-              <div className="w-12 h-12 rounded-full bg-white/80 text-slate-400 mx-auto flex items-center justify-center">
-                <MapPin className="w-6 h-6" />
+            <div className="glass-panel p-10 sm:p-14 text-center rounded-[32px] border border-white/10 space-y-4 shadow-2xl">
+              <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 text-slate-400 mx-auto flex items-center justify-center">
+                <MapPin className="w-7 h-7 text-[#FF5F8A]" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">No Safe Zones Configured</h3>
-              <p className="text-xs text-slate-600 max-w-sm mx-auto">
-                Set up geofenced boundaries like home, work, or college to receive instant boundary alerts.
+              <h3 className="text-lg font-extrabold text-white">No Safe Zones Configured</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                Set up geofenced safety boundaries like Home, Campus, or Work to receive instant boundary alert logs.
               </p>
               <button
                 onClick={() => {
                   setEditingZone(null);
                   setIsModalOpen(true);
                 }}
-                className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 transition-colors active:scale-95"
+                className="mt-2 inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-xs text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-colors active:scale-95"
               >
                 <Plus className="w-4 h-4 text-[#FF5F8A]" />
-                Create First Zone
+                <span>Create First Geofence Zone</span>
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {safeZones.map((zone) => (
                 <div 
                   key={zone.id}
-                  className="glass-panel glass-panel-hover p-5 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4 relative overflow-hidden"
+                  className="glass-panel glass-panel-hover p-6 rounded-[28px] border border-white/10 space-y-5 relative overflow-hidden shadow-xl"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className={`p-2.5 sm:p-3 rounded-2xl shrink-0 ${
-                        zone.active ? 'bg-emerald-100/80 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400 border border-slate-200'
+                    <div className="flex items-center gap-3.5 overflow-hidden">
+                      <div className={`p-3 rounded-2xl shrink-0 ${
+                        zone.active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-slate-500 border border-white/10'
                       }`}>
-                        <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <MapPin className="w-5 h-5" />
                       </div>
                       <div className="overflow-hidden">
-                        <h4 className="text-sm sm:text-base font-bold text-slate-900 truncate">
+                        <h4 className="text-base font-extrabold text-white truncate">
                           {zone.zoneName}
                         </h4>
-                        <span className="text-xs text-slate-500 font-mono">
-                          Radius: <strong className="text-slate-800">{Math.round(zone.radius)}m</strong>
+                        <span className="text-xs text-slate-400 font-mono">
+                          Boundary Radius: <strong className="text-white">{Math.round(zone.radius)} meters</strong>
                         </span>
                       </div>
                     </div>
 
-                    {/* Status Badge */}
+                    {/* Active Toggle Button */}
                     <button
                       onClick={() => handleToggleActive(zone.id, zone.active)}
-                      className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-colors shrink-0 active:scale-95 ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 ${
                         zone.active
-                          ? 'bg-emerald-100/80 text-emerald-800 border border-emerald-200'
-                          : 'bg-slate-100 text-slate-500 border border-slate-200'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-white/5 text-slate-400 border border-white/10'
                       }`}
                     >
                       {zone.active ? (
@@ -302,34 +303,34 @@ export default function SafeZones({ user }) {
                       ) : (
                         <>
                           <ToggleLeft className="w-4 h-4" />
-                          <span>Inactive</span>
+                          <span>Disabled</span>
                         </>
                       )}
                     </button>
                   </div>
 
-                  <div className="p-3 rounded-2xl bg-white/80 border border-slate-200 text-xs font-mono text-slate-500 flex items-center justify-between">
-                    <span>Coordinates</span>
-                    <span className="text-slate-900 font-medium">
+                  <div className="p-3.5 rounded-2xl bg-[#090A18]/80 border border-white/10 text-xs font-mono text-slate-400 flex items-center justify-between">
+                    <span>GPS Center</span>
+                    <span className="text-white font-medium">
                       {zone.latitude?.toFixed(4)}, {zone.longitude?.toFixed(4)}
                     </span>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
                     <button
                       onClick={() => {
                         setEditingZone(zone);
                         setIsModalOpen(true);
                       }}
-                      className="p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-white transition-colors flex items-center gap-1.5 text-xs font-semibold active:scale-95"
+                      className="px-3 py-1.5 rounded-xl text-sky-400 hover:bg-sky-500/20 transition-colors flex items-center gap-1.5 text-xs font-bold active:scale-95"
                     >
-                      <Edit3 className="w-4 h-4 text-sky-600" />
+                      <Edit3 className="w-4 h-4" />
                       <span>Edit</span>
                     </button>
                     <button
                       onClick={() => handleDeleteZone(zone.id)}
-                      className="p-2 rounded-xl text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1.5 text-xs font-semibold active:scale-95"
+                      className="px-3 py-1.5 rounded-xl text-rose-400 hover:bg-rose-500/20 transition-colors flex items-center gap-1.5 text-xs font-bold active:scale-95"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>Delete</span>
@@ -343,18 +344,18 @@ export default function SafeZones({ user }) {
 
         </div>
       ) : (
-        /* Boundary Alerts Tab */
+        /* Boundary Breach Alerts Log Tab */
         <div className="space-y-6">
           
-          {/* Real-time Status Panel */}
-          <div className="glass-panel p-5 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+          {/* Telemetry Summary Card */}
+          <div className="glass-panel p-6 rounded-[28px] border border-white/10 space-y-4 shadow-xl">
+            <h3 className="text-sm font-extrabold text-white flex items-center gap-2 uppercase tracking-wider">
               <Radio className="w-4 h-4 text-[#FF5F8A] animate-pulse" />
               Live Boundary Telemetry Summary
             </h3>
             
             {Object.keys(latestStatusPerZone).length === 0 ? (
-              <p className="text-xs text-slate-500 font-medium">No live telemetry reports registered yet.</p>
+              <p className="text-xs text-slate-400 font-medium">No live telemetry boundary reports registered yet.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {Object.values(latestStatusPerZone).map((alert) => {
@@ -362,20 +363,20 @@ export default function SafeZones({ user }) {
                   return (
                     <div 
                       key={alert.id}
-                      className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-3 ${
+                      className={`p-4 rounded-2xl border text-xs font-bold flex items-center gap-3 ${
                         isInside 
-                          ? 'bg-emerald-50/90 border-emerald-200 text-emerald-800'
-                          : 'bg-rose-50/90 border-rose-200 text-rose-800'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                          : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                       }`}
                     >
                       {isInside ? (
-                        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
                       ) : (
-                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
                       )}
                       <div className="overflow-hidden">
-                        <span className="text-slate-900 block font-bold truncate">{alert.zoneName}</span>
-                        <span>{isInside ? 'Inside Boundary' : 'Outside Boundary'}</span>
+                        <span className="text-white block font-bold truncate">{alert.zoneName}</span>
+                        <span>{isInside ? 'INSIDE SAFE BOUNDARY' : 'BOUNDARY BREACH DETECTED'}</span>
                       </div>
                     </div>
                   );
@@ -384,17 +385,17 @@ export default function SafeZones({ user }) {
             )}
           </div>
 
-          {/* Alerts Feed */}
+          {/* Alert Stream Feed */}
           {alertsLoading ? (
-            <div className="py-16 text-center text-slate-500 text-xs flex flex-col items-center gap-3">
-              <div className="w-7 h-7 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+            <div className="py-16 text-center text-slate-400 text-xs flex flex-col items-center gap-3">
+              <div className="w-7 h-7 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
               <span>Streaming boundary alert logs...</span>
             </div>
           ) : boundaryAlerts.length === 0 ? (
-            <div className="glass-panel p-8 sm:p-12 text-center rounded-2xl sm:rounded-3xl space-y-3">
-              <Bell className="w-8 h-8 text-slate-400 mx-auto" />
-              <h4 className="text-sm font-bold text-slate-900">No Recent Boundary Alerts</h4>
-              <p className="text-xs text-slate-500">
+            <div className="glass-panel p-10 sm:p-14 text-center rounded-[32px] border border-white/10 space-y-3 shadow-2xl">
+              <Bell className="w-8 h-8 text-slate-500 mx-auto" />
+              <h4 className="text-sm font-bold text-white">No Recent Boundary Alerts</h4>
+              <p className="text-xs text-slate-400">
                 Log events will appear automatically when safe boundaries are entered or crossed.
               </p>
             </div>
@@ -407,20 +408,20 @@ export default function SafeZones({ user }) {
                 return (
                   <div 
                     key={alert.id}
-                    className="glass-panel p-3.5 sm:p-4 rounded-2xl flex items-center justify-between gap-3 sm:gap-4"
+                    className="glass-panel p-4 rounded-2xl border border-white/10 flex items-center justify-between gap-4 shadow-lg hover:border-white/20 transition-all"
                   >
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className={`p-2.5 rounded-xl shrink-0 ${
-                        isEntry ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-rose-100 text-rose-700 border border-rose-200'
+                    <div className="flex items-center gap-3.5 overflow-hidden">
+                      <div className={`p-3 rounded-xl shrink-0 ${
+                        isEntry ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                       }`}>
-                        {isEntry ? <LogIn className="w-4 h-4 sm:w-5 sm:h-5" /> : <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />}
+                        {isEntry ? <LogIn className="w-5 h-5" /> : <LogOut className="w-5 h-5" />}
                       </div>
                       <div className="overflow-hidden">
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                          {isEntry ? 'Entered' : 'Exited'} {alert.zoneName || 'Safe Zone'}
+                        <h4 className="text-xs sm:text-sm font-extrabold text-white truncate">
+                          {isEntry ? 'Entered' : 'Exited'} {alert.zoneName || 'Safe Zone Perimeter'}
                         </h4>
-                        <p className="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1 mt-0.5 truncate">
-                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                        <p className="text-[11px] sm:text-xs text-slate-400 flex items-center gap-1.5 mt-0.5 truncate">
+                          <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                           {formatTimestamp(alert.timestamp)}
                         </p>
                       </div>
@@ -430,19 +431,19 @@ export default function SafeZones({ user }) {
                       {hasRecording && (
                         <button
                           onClick={() => setSelectedMedia({
-                            type: `Boundary Alert (${alert.zoneName || 'Geofence'})`,
+                            type: `Boundary Alert Video (${alert.zoneName || 'Geofence'})`,
                             url: alert.downloadUrl || alert.recordingUrl,
                             timeText: formatTimestamp(alert.timestamp)
                           })}
-                          className="px-3 py-1.5 rounded-xl text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-colors flex items-center gap-1 active:scale-95"
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 transition-colors flex items-center gap-1.5 active:scale-95"
                         >
                           <Play className="w-3.5 h-3.5 fill-current" />
                           <span>Video</span>
                         </button>
                       )}
-                      <div className="text-right font-mono text-xs">
-                        <span className="text-slate-400 block text-[10px]">Target ID</span>
-                        <span className="text-slate-800 font-semibold text-[11px] sm:text-xs">{alert.childId || 'Protected User'}</span>
+                      <div className="text-right font-mono text-xs hidden sm:block">
+                        <span className="text-slate-500 block text-[10px] uppercase">Subject ID</span>
+                        <span className="text-white font-bold text-[11px]">{alert.childId || 'Protected User'}</span>
                       </div>
                     </div>
                   </div>
