@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Radar, 
   ShieldCheck, 
@@ -11,8 +11,6 @@ import {
   Video, 
   Play, 
   ShieldAlert, 
-  Activity,
-  Sparkles,
   Lock,
   Phone,
   Droplet,
@@ -21,7 +19,8 @@ import {
   Copy,
   Check,
   Battery,
-  Wifi
+  Wifi,
+  UserRound
 } from 'lucide-react';
 import { db } from '../firebase';
 import { doc, onSnapshot, collection, query, orderBy, limit, where } from 'firebase/firestore';
@@ -29,7 +28,7 @@ import MediaModal from '../components/MediaModal';
 import { getPublicProfilePhotoUrl, resolveMediaUrl } from '../supabase';
 
 // Leaflet Map Imports
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -50,6 +49,23 @@ const createPulseIcon = () => {
   });
 };
 
+function FocusLiveLocation({ lat, lng, enabled }) {
+  const map = useMap();
+  const hasFocused = useRef(false);
+
+  useEffect(() => {
+    if (!enabled || hasFocused.current) return;
+
+    hasFocused.current = true;
+    map.flyTo([lat, lng], 16, {
+      animate: true,
+      duration: 1.6,
+    });
+  }, [enabled, lat, lng, map]);
+
+  return null;
+}
+
 export default function Dashboard({ user }) {
   const [userData, setUserData] = useState(null);
   const [sosEvent, setSosEvent] = useState(null);
@@ -60,6 +76,7 @@ export default function Dashboard({ user }) {
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [copiedGps, setCopiedGps] = useState(false);
   const [activeMediaFilter, setActiveMediaFilter] = useState('all'); // 'all' | 'audio' | 'video'
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   // Listen to User document (users/{userId})
   useEffect(() => {
@@ -168,35 +185,12 @@ export default function Dashboard({ user }) {
   const avatarUrl = userData?.photoUrl 
     ? resolveMediaUrl(userData.photoUrl, user?.uid) 
     : (user?.uid ? getPublicProfilePhotoUrl(user.uid) : '');
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatarUrl]);
     
   const initials = displayName ? displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'P';
-
-  // SOS status formatting
-  const getStatusBadge = (status = 'PENDING') => {
-    const s = status.toLowerCase();
-    if (s === 'resolved') {
-      return (
-        <span className="px-3 py-1 text-[11px] sm:text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center gap-1.5 shrink-0 shadow-sm">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          RESOLVED
-        </span>
-      );
-    }
-    if (s === 'in_progress') {
-      return (
-        <span className="px-3 py-1 text-[11px] sm:text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-full flex items-center gap-1.5 animate-pulse shrink-0 shadow-sm">
-          <Activity className="w-3.5 h-3.5" />
-          DISPATCH IN PROGRESS
-        </span>
-      );
-    }
-    return (
-      <span className="px-3 py-1 text-[11px] sm:text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-full flex items-center gap-1.5 animate-pulse shrink-0 shadow-sm shadow-rose-500/20">
-        <ShieldAlert className="w-3.5 h-3.5" />
-        ACTIVE SOS ALARM
-      </span>
-    );
-  };
 
   const formatTimestamp = (ts) => {
     if (!ts) return 'Not available';
@@ -218,16 +212,66 @@ export default function Dashboard({ user }) {
     }
   };
 
+  const getRecordingTime = (recording) => {
+    const value = recording.createdAt || recording.recordedAt || recording.time;
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return value.toMillis();
+    if (typeof value.toDate === 'function') return value.toDate().getTime();
+    if (typeof value.seconds === 'number') return value.seconds * 1000;
+    const parsed = new Date(value).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const getEvidenceTitle = (recording) => {
+    const source = `${recording.type || ''} ${recording.fileName || ''}`.toLowerCase();
+    if (source.includes('video') || source.includes('.mp4')) {
+      if (source.includes('back') || source.includes('rear')) return 'SOS Video — Rear Camera';
+      if (source.includes('front')) return 'SOS Video — Front Camera';
+      return 'SOS Video Recording';
+    }
+    if (source.includes('audio') || source.includes('.mp3') || source.includes('.m4a')) return 'SOS Audio Recording';
+    return 'SOS Evidence File';
+  };
+
+  const getOriginalFilename = (recording) => {
+    if (recording.fileName) return recording.fileName;
+    const source = recording.storagePath || recording.downloadUrl || recording.url || '';
+    if (!source) return '';
+    try {
+      return decodeURIComponent(source.split('?')[0].split('/').pop() || '');
+    } catch {
+      return source.split('?')[0].split('/').pop() || '';
+    }
+  };
+
+  const getEvidenceTimeText = (recording) => {
+    const recordedAt = recording.createdAt || recording.recordedAt || recording.time;
+    if (recordedAt) return formatTimestamp(recordedAt);
+
+    const source = `${recording.fileName || ''} ${recording.storagePath || ''} ${recording.downloadUrl || ''}`;
+    const timeMatch = source.match(/(?:sos[_-])?(\d{2})(\d{2})(\d{2})(?:[_\-.]|$)/i);
+    if (!timeMatch) return 'Time unavailable';
+
+    const [, hours, minutes, seconds] = timeMatch;
+    const hour = Number(hours);
+    if (hour > 23 || Number(minutes) > 59 || Number(seconds) > 59) return 'Time unavailable';
+
+    const fallbackTime = new Date(2000, 0, 1, hour, Number(minutes), Number(seconds));
+    return `${fallbackTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })} · from filename`;
+  };
+
   // Filter media vault recordings
-  const filteredRecordings = recordings.filter(rec => {
-    if (activeMediaFilter === 'audio') {
-      return (rec.type || '').toLowerCase().includes('audio') || (rec.fileName || '').toLowerCase().includes('.mp3') || (rec.fileName || '').toLowerCase().includes('.m4a');
-    }
-    if (activeMediaFilter === 'video') {
-      return (rec.type || '').toLowerCase().includes('video') || (rec.fileName || '').toLowerCase().includes('.mp4');
-    }
-    return true;
-  });
+  const filteredRecordings = [...recordings]
+    .filter(rec => {
+      if (activeMediaFilter === 'audio') {
+        return (rec.type || '').toLowerCase().includes('audio') || (rec.fileName || '').toLowerCase().includes('.mp3') || (rec.fileName || '').toLowerCase().includes('.m4a');
+      }
+      if (activeMediaFilter === 'video') {
+        return (rec.type || '').toLowerCase().includes('video') || (rec.fileName || '').toLowerCase().includes('.mp4');
+      }
+      return true;
+    })
+    .sort((a, b) => getRecordingTime(b) - getRecordingTime(a));
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto pb-12">
@@ -236,17 +280,12 @@ export default function Dashboard({ user }) {
       <div className="relative p-6 sm:p-8 lg:p-10 rounded-[32px] glass-panel overflow-hidden space-y-6 border border-white/10 shadow-2xl">
         
         {/* Glow ambient background */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#FF5F8A]/20 via-purple-600/10 to-transparent rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#FF5F8A]/20 via-rose-500/10 to-transparent rounded-full blur-[100px] pointer-events-none" />
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#FF5F8A]/10 border border-[#FF5F8A]/30 rounded-full text-[11px] sm:text-xs font-bold text-[#FF5F8A] shadow-sm">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Guardian Sentinel Emergency Protocol Active</span>
-            </div>
-            
             <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
-              Guardian Telemetry <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF5F8A] via-pink-400 to-purple-400">Command Center</span>
+              Guardian Telemetry <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF5F8A] via-pink-400 to-pink-500">Command Center</span>
             </h1>
             
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed font-medium">
@@ -255,35 +294,52 @@ export default function Dashboard({ user }) {
           </div>
 
           {/* Quick Telemetry Counters */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0">
-            <div className="p-4 rounded-2xl bg-[#090A18]/80 border border-white/10 shadow-xl backdrop-blur-md">
-              <Radar className="w-5 h-5 text-[#FF5F8A] mb-1.5 animate-spin-slow" />
-              <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">System State</span>
-              <span className="text-xs font-black text-emerald-400">NOMINAL</span>
+          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3 lg:w-auto lg:min-w-[470px] shrink-0">
+            <div className="flex items-center gap-3 rounded-2xl border border-pink-100 bg-white/95 p-4 shadow-[0_10px_30px_rgba(151,67,99,0.10)]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Radar className="w-5 h-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="text-[10px] text-slate-500 block font-semibold uppercase tracking-[0.12em]">System State</span>
+                <span className="mt-0.5 block text-sm font-extrabold text-emerald-600">Nominal</span>
+              </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#090A18]/80 border border-white/10 shadow-xl backdrop-blur-md">
-              <Wifi className="w-5 h-5 text-purple-400 mb-1.5" />
-              <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Satellite GPS</span>
-              <span className="text-xs font-black text-white">{hasValidLocation ? 'CONNECTED' : 'STANDBY'}</span>
+            <div className="flex items-center gap-3 rounded-2xl border border-pink-100 bg-white/95 p-4 shadow-[0_10px_30px_rgba(151,67,99,0.10)]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
+                <Wifi className="w-5 h-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="text-[10px] text-slate-500 block font-semibold uppercase tracking-[0.12em]">Satellite GPS</span>
+                <span className="mt-0.5 block text-sm font-extrabold text-slate-800">{hasValidLocation ? 'Connected' : 'Standby'}</span>
+              </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#090A18]/80 border border-white/10 shadow-xl backdrop-blur-md col-span-2 sm:col-span-1">
-              <Lock className="w-5 h-5 text-pink-400 mb-1.5" />
-              <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Media Evidence</span>
-              <span className="text-xs font-black text-white">{recordings.length} Vault Files</span>
+            <div className="flex items-center gap-3 rounded-2xl border border-pink-100 bg-white/95 p-4 shadow-[0_10px_30px_rgba(151,67,99,0.10)]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                <Lock className="w-5 h-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="text-[10px] text-slate-500 block font-semibold uppercase tracking-[0.12em]">Media Evidence</span>
+                <span className="mt-0.5 block text-sm font-extrabold text-slate-800">{recordings.length} Vault Files</span>
+              </span>
             </div>
           </div>
         </div>
 
         {/* Quick Emergency Action Buttons */}
-        <div className="pt-4 border-t border-white/10 flex flex-wrap items-center gap-3 relative z-10">
+        <div className="relative z-10 grid grid-cols-1 gap-3 border-t border-pink-100 pt-5 sm:grid-cols-2 lg:grid-cols-3">
           <button 
             onClick={copyCoordinates}
-            className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-all flex items-center gap-2 active:scale-95"
+            className="group flex min-h-[72px] items-center gap-3 rounded-2xl border border-pink-100 bg-white/95 p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-pink-300 hover:shadow-lg active:translate-y-0"
           >
-            {copiedGps ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-[#FF5F8A]" />}
-            <span>{copiedGps ? 'GPS Coordinates Copied!' : 'Copy GPS Lat/Lng'}</span>
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${copiedGps ? 'bg-emerald-50 text-emerald-600' : 'bg-pink-50 text-pink-600'}`}>
+              {copiedGps ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+            </span>
+            <span>
+              <span className="block text-sm font-bold text-slate-800">{copiedGps ? 'Coordinates copied' : 'Copy GPS coordinates'}</span>
+              <span className="mt-0.5 block text-[11px] text-slate-500">Copy latitude and longitude</span>
+            </span>
           </button>
 
           {hasValidLocation && (
@@ -291,21 +347,31 @@ export default function Dashboard({ user }) {
               href={`https://www.google.com/maps?q=${lat},${lng}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2.5 rounded-xl bg-[#FF5F8A]/15 hover:bg-[#FF5F8A]/25 border border-[#FF5F8A]/30 text-xs font-bold text-[#FF5F8A] transition-all flex items-center gap-2 active:scale-95"
+              className="group flex min-h-[72px] items-center gap-3 rounded-2xl border border-pink-100 bg-white/95 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-pink-300 hover:shadow-lg active:translate-y-0"
             >
-              <MapPin className="w-4 h-4" />
-              <span>View Location on Google Maps</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
+                <MapPin className="w-5 h-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-slate-800">Open live location</span>
+                <span className="mt-0.5 block text-[11px] text-slate-500">View in Google Maps</span>
+              </span>
+              <ExternalLink className="w-4 h-4 shrink-0 text-slate-400 transition-colors group-hover:text-pink-600" />
             </a>
           )}
 
           {phone && (
             <a
               href={`tel:${phone}`}
-              className="px-4 py-2.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-xs font-bold text-purple-300 transition-all flex items-center gap-2 active:scale-95"
+              className="group flex min-h-[72px] items-center gap-3 rounded-2xl border border-pink-100 bg-white/95 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-pink-300 hover:shadow-lg active:translate-y-0"
             >
-              <Phone className="w-4 h-4" />
-              <span>Call Primary Phone ({phone})</span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                <Phone className="w-5 h-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold text-slate-800">Call primary phone</span>
+                <span className="mt-0.5 block text-[11px] text-slate-500">{phone}</span>
+              </span>
             </a>
           )}
         </div>
@@ -313,64 +379,73 @@ export default function Dashboard({ user }) {
       </div>
 
       {/* Protected User Info Card */}
-      <div className="glass-panel p-6 sm:p-8 rounded-[32px] border border-white/10 relative overflow-hidden shadow-xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6 relative z-10">
-          <div className="relative shrink-0">
-            {avatarUrl ? (
-              <img 
-                src={avatarUrl} 
-                alt={displayName} 
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = getPublicProfilePhotoUrl(user?.uid);
-                }}
-                className="w-18 h-18 sm:w-22 sm:h-22 rounded-2xl object-cover ring-2 ring-[#FF5F8A]/50 shadow-xl bg-slate-900"
-              />
-            ) : (
-              <div className="w-18 h-18 sm:w-22 sm:h-22 rounded-2xl bg-gradient-to-br from-[#FF5F8A] via-pink-600 to-purple-600 flex items-center justify-center text-white font-black text-2xl shadow-xl">
-                {initials}
+      <div className="glass-panel rounded-[32px] border border-pink-100 p-5 shadow-xl sm:p-6">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
+          <div className="flex min-w-0 items-center gap-4 rounded-2xl border border-pink-100 bg-white/95 p-4 shadow-sm sm:gap-5 sm:p-5">
+            <div className="shrink-0">
+              {avatarUrl && !avatarFailed ? (
+                <img
+                  src={avatarUrl}
+                  alt={displayName}
+                  onError={() => setAvatarFailed(true)}
+                  className="h-16 w-16 rounded-2xl object-cover ring-2 ring-pink-200 shadow-md bg-pink-50 sm:h-20 sm:w-20"
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-pink-200 bg-gradient-to-br from-pink-50 to-rose-100 text-pink-600 shadow-md sm:h-20 sm:w-20">
+                  <UserRound className="h-8 w-8 sm:h-10 sm:w-10" aria-hidden="true" />
+                  <span className="sr-only">{initials}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-pink-600">Protected user</span>
+              <h3 className="mt-1 truncate text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
+                {displayName}
+              </h3>
+              <div className="mt-2 flex flex-col gap-1 text-xs text-slate-600 sm:flex-row sm:flex-wrap sm:gap-x-4">
+                <span className="truncate">{email}</span>
+                {phone && <span className="font-medium">{phone}</span>}
               </div>
-            )}
-            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 border-2 border-[#090A18] rounded-full animate-pulse" />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-pink-100 bg-pink-50 px-3 py-1 text-[11px] font-bold text-pink-700">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Telemetry protected
+                </span>
+                {emergencyNote && (
+                  <span className="inline-flex max-w-sm items-center gap-1.5 truncate rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
+                    <FileText className="h-3.5 w-3.5 shrink-0" />
+                    {emergencyNote}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="flex-1 space-y-2 min-w-0">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xl sm:text-2xl font-black text-white truncate tracking-wide">
-                  {displayName}
-                </h3>
-                <p className="text-xs text-slate-400 font-mono truncate mt-0.5">
-                  {email} {phone && `• ${phone}`}
-                </p>
+          <div className="overflow-hidden rounded-2xl border border-pink-100 bg-white/95 shadow-sm">
+            {hasValidLocation && (
+              <div className="flex min-h-[76px] items-center justify-between gap-5 px-5 py-5">
+                <span className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
+                    <Radar className="h-5 w-5" />
+                  </span>
+                  <span className="text-sm font-bold text-slate-800">Live GPS</span>
+                </span>
+                <span className="truncate font-mono text-sm font-medium text-slate-600">{lat.toFixed(4)}, {lng.toFixed(4)}</span>
               </div>
+            )}
 
-              {hasValidLocation && (
-                <span className="px-3.5 py-1.5 text-xs font-extrabold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center gap-2 animate-pulse shadow-sm">
-                  <Radar className="w-4 h-4 text-emerald-400" />
-                  Live GPS: {lat.toFixed(4)}, {lng.toFixed(4)}
+            {bloodGroup && (
+              <div className={`flex min-h-[76px] items-center justify-between gap-5 px-5 py-5 ${hasValidLocation ? 'border-t border-pink-100' : ''}`}>
+                <span className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                    <Droplet className="h-5 w-5" />
+                  </span>
+                  <span className="text-sm font-bold text-slate-800">Blood group</span>
                 </span>
-              )}
-            </div>
-
-            <div className="pt-2 flex flex-wrap items-center gap-2.5">
-              {bloodGroup && (
-                <span className="px-3 py-1 text-xs font-bold text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-full flex items-center gap-1.5">
-                  <Droplet className="w-3.5 h-3.5 text-rose-400" />
-                  Blood: {bloodGroup}
-                </span>
-              )}
-              {emergencyNote && (
-                <span className="px-3 py-1 text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-full flex items-center gap-1.5 truncate max-w-sm">
-                  <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  Note: {emergencyNote}
-                </span>
-              )}
-              <span className="px-3 py-1 text-xs font-bold text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded-full flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
-                Active Telemetry Shield
-              </span>
-            </div>
+                <span className="text-base font-extrabold uppercase text-rose-600">{bloodGroup}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -392,9 +467,11 @@ export default function Dashboard({ user }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>SUB-METER ACCURACY</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-pink-100 bg-white/85 py-1.5 pl-1.5 pr-3.5 text-xs font-semibold text-slate-700 shadow-[0_6px_18px_rgba(173,76,111,0.10)] backdrop-blur-sm">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-pink-50 text-pink-600">
+              <MapPin className="h-3.5 w-3.5" />
+            </span>
+            <span>Tracking live</span>
           </div>
         </div>
 
@@ -404,8 +481,10 @@ export default function Dashboard({ user }) {
             center={[lat, lng]} 
             zoom={14} 
             scrollWheelZoom={false}
+            zoomAnimation={true}
             className="h-full w-full"
           >
+            <FocusLiveLocation lat={lat} lng={lng} enabled={hasValidLocation} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -436,8 +515,8 @@ export default function Dashboard({ user }) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
         
         {/* Latest SOS Alert Event */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="glass-panel p-6 sm:p-8 rounded-[32px] border border-white/10 space-y-6 relative overflow-hidden shadow-2xl">
+        <div className="lg:col-span-5 h-full">
+          <div className="glass-panel relative flex h-full flex-col gap-6 overflow-hidden rounded-[32px] border border-white/10 p-6 shadow-2xl sm:p-8">
             
             <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-5">
               <div className="flex items-center gap-3">
@@ -451,7 +530,6 @@ export default function Dashboard({ user }) {
                   <p className="text-xs text-slate-400">Real-time distress trigger telemetry</p>
                 </div>
               </div>
-              {sosEvent && getStatusBadge(sosEvent.status)}
             </div>
 
             {sosLoading ? (
@@ -476,40 +554,51 @@ export default function Dashboard({ user }) {
               const sosTime = sosEvent.timestamp || sosEvent.time || sosEvent.createdAt;
 
               return (
-                <div className="space-y-4 text-xs">
+                <div className="flex flex-1 flex-col gap-4 text-xs">
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div className="p-4 rounded-2xl bg-[#090A18]/80 border border-white/10 space-y-1">
-                      <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Timestamp</span>
-                      <span className="text-white font-medium flex items-center gap-2 truncate">
-                        <Clock className="w-4 h-4 text-[#FF5F8A] shrink-0" />
-                        {formatTimestamp(sosTime)}
+                    <div className="flex items-start gap-3 rounded-2xl border border-pink-100 bg-white/95 p-4 shadow-sm">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
+                        <Clock className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 pt-0.5">
+                        <span className="block text-xs font-extrabold text-slate-900">Timestamp</span>
+                        <span className="mt-1 block text-sm font-normal leading-snug text-slate-600">{formatTimestamp(sosTime)}</span>
                       </span>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-[#090A18]/80 border border-white/10 space-y-1">
-                      <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Trigger Mechanism</span>
-                      <span className="text-white font-medium capitalize flex items-center gap-2 truncate">
-                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                        {sosTrigger}
+                    <div className="flex items-start gap-3 rounded-2xl border border-amber-100 bg-white/95 p-4 shadow-sm">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                        <AlertTriangle className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 pt-0.5">
+                        <span className="block text-xs font-extrabold text-slate-900">Trigger mechanism</span>
+                        <span className="mt-1 block text-sm font-normal capitalize leading-snug text-slate-600">{String(sosTrigger).replaceAll('_', ' ')}</span>
                       </span>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-[#090A18]/80 border border-white/10 space-y-1">
-                    <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Coordinates</span>
-                    <span className="text-white font-mono font-medium break-all">
-                      {sosLat != null && sosLng != null
-                        ? `${sosLat}, ${sosLng}`
-                        : 'Coordinates telemetry missing'}
-                    </span>
-                  </div>
+                  <div className="flex min-h-[190px] flex-1 flex-col gap-4">
+                    <div className="flex items-center justify-between gap-4 rounded-2xl border border-pink-100 bg-pink-50/60 px-4 py-3.5 shadow-sm">
+                      <span className="flex shrink-0 items-center gap-2 text-xs font-extrabold text-slate-900">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-pink-600 shadow-sm">
+                          <MapPin className="h-4 w-4" />
+                        </span>
+                        Coordinates
+                      </span>
+                      <span className="min-w-0 break-all text-right font-mono text-xs font-medium leading-relaxed text-slate-600">
+                        {sosLat != null && sosLng != null
+                          ? `${sosLat}, ${sosLng}`
+                          : 'Coordinates telemetry missing'}
+                      </span>
+                    </div>
 
-                  <div className="p-4 rounded-2xl bg-[#090A18]/80 border border-white/10 space-y-1">
-                    <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Address Reference</span>
-                    <span className="text-white font-medium leading-relaxed block">
-                      {sosEvent.address || 'Address telemetry auto-resolving...'}
-                    </span>
+                    <div className="flex flex-col justify-center rounded-2xl border border-pink-100 bg-white/95 px-5 py-4 shadow-sm">
+                      <span className="block text-xs font-extrabold text-slate-900">Address reference</span>
+                      <span className="mt-1.5 block text-sm font-normal leading-relaxed text-slate-600">
+                        {sosEvent.address || 'Address telemetry auto-resolving...'}
+                      </span>
+                    </div>
                   </div>
 
                   {(sosEvent.map || (sosLat != null && sosLng != null)) && (
@@ -517,7 +606,7 @@ export default function Dashboard({ user }) {
                       href={sosEvent.map || `https://www.google.com/maps?q=${sosLat},${sosLng}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full py-4 px-4 rounded-2xl font-bold text-xs text-white bg-gradient-to-r from-[#FF5F8A] to-purple-600 hover:opacity-90 transition-all flex items-center justify-center gap-2 group shadow-xl shadow-[#FF5F8A]/20 border border-white/10 active:scale-95"
+                      className="group mt-auto flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-[#FF5F8A] to-rose-500 px-4 py-4 text-xs font-bold text-white shadow-xl shadow-[#FF5F8A]/20 transition-all hover:opacity-90 active:scale-95"
                     >
                       <MapPin className="w-4 h-4" />
                       <span>Open SOS Pin in Google Maps</span>
@@ -533,12 +622,12 @@ export default function Dashboard({ user }) {
         </div>
 
         {/* Encrypted Media Evidence Vault */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="glass-panel p-6 sm:p-8 rounded-[32px] border border-white/10 space-y-6 relative overflow-hidden shadow-2xl">
+        <div className="lg:col-span-7 h-full">
+          <div className="glass-panel h-full p-6 sm:p-8 rounded-[32px] border border-white/10 space-y-6 relative overflow-hidden shadow-2xl">
             
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-5">
+            <div className="flex flex-col gap-4 border-b border-white/10 pb-5 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
+                <div className="p-2.5 rounded-xl bg-rose-400/10 border border-rose-400/30 text-pink-500">
                   <Mic className="w-5 h-5" />
                 </div>
                 <div>
@@ -552,10 +641,10 @@ export default function Dashboard({ user }) {
               </div>
 
               {/* Filter Tabs */}
-              <div className="flex items-center p-1 rounded-xl bg-white/5 border border-white/10 text-[11px] font-bold">
+              <div className="grid w-full grid-cols-3 items-center gap-1 rounded-xl border border-pink-100 bg-pink-50/70 p-1 text-[11px] font-bold whitespace-nowrap xl:w-auto xl:min-w-[230px]">
                 <button
                   onClick={() => setActiveMediaFilter('all')}
-                  className={`px-2.5 py-1 rounded-lg transition-colors ${
+                  className={`flex h-8 items-center justify-center rounded-lg px-3 transition-colors ${
                     activeMediaFilter === 'all' ? 'bg-[#FF5F8A] text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -563,7 +652,7 @@ export default function Dashboard({ user }) {
                 </button>
                 <button
                   onClick={() => setActiveMediaFilter('audio')}
-                  className={`px-2.5 py-1 rounded-lg transition-colors ${
+                  className={`flex h-8 items-center justify-center rounded-lg px-3 transition-colors ${
                     activeMediaFilter === 'audio' ? 'bg-[#FF5F8A] text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -571,7 +660,7 @@ export default function Dashboard({ user }) {
                 </button>
                 <button
                   onClick={() => setActiveMediaFilter('video')}
-                  className={`px-2.5 py-1 rounded-lg transition-colors ${
+                  className={`flex h-8 items-center justify-center rounded-lg px-3 transition-colors ${
                     activeMediaFilter === 'video' ? 'bg-[#FF5F8A] text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -582,7 +671,7 @@ export default function Dashboard({ user }) {
 
             {recordingsLoading ? (
               <div className="py-12 text-center text-slate-400 text-xs flex flex-col items-center gap-3">
-                <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-6 h-6 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
                 <span>Decrypting media vault streams...</span>
               </div>
             ) : filteredRecordings.length === 0 ? (
@@ -597,37 +686,43 @@ export default function Dashboard({ user }) {
               <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
                 {filteredRecordings.map((rec) => {
                   const recType = rec.type || rec.fileName || 'Incident Recording';
+                  const evidenceTitle = getEvidenceTitle(rec);
                   const recUrl = rec.url || rec.downloadUrl || rec.storagePath || '';
-                  const recTime = rec.createdAt || rec.recordedAt || rec.time;
-                  const timeText = formatTimestamp(recTime);
+                  const originalFilename = getOriginalFilename(rec);
+                  const timeText = getEvidenceTimeText(rec);
                   const isVideo = recType.toLowerCase().includes('video') || recType.toLowerCase().includes('.mp4');
 
                   return (
                     <div 
                       key={rec.id}
-                      className="p-4 rounded-2xl bg-[#090A18]/80 hover:bg-[#0D0E24] border border-white/10 hover:border-purple-500/40 transition-all flex items-center justify-between gap-3 shadow-lg group"
+                      className="p-4 rounded-2xl bg-[#090A18]/80 hover:bg-[#0D0E24] border border-white/10 hover:border-rose-400/40 transition-all flex items-center justify-between gap-3 shadow-lg group"
                     >
                       <div className="flex items-center gap-3.5 overflow-hidden">
                         <div className={`p-3 rounded-xl shrink-0 ${
-                          isVideo ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          isVideo ? 'bg-rose-400/20 text-pink-500 border border-rose-400/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                         }`}>
                           {isVideo ? <Video className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                         </div>
                         <div className="overflow-hidden">
                           <h4 className="text-xs font-bold text-white truncate">
-                            {recType}
+                            {evidenceTitle}
                           </h4>
                           <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5 truncate">
                             <Clock className="w-3 h-3 text-slate-500 shrink-0" />
                             {timeText}
                           </p>
+                          {originalFilename && (
+                            <p className="mt-1 truncate font-mono text-[10px] text-slate-500" title={originalFilename}>
+                              {originalFilename}
+                            </p>
+                          )}
                         </div>
                       </div>
 
                       {recUrl && (
                         <button
-                          onClick={() => setSelectedMedia({ ...rec, type: recType, url: recUrl, timeText })}
-                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 transition-colors flex items-center gap-1.5 shrink-0 active:scale-95"
+                          onClick={() => setSelectedMedia({ ...rec, type: evidenceTitle, url: recUrl, timeText })}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-pink-600 bg-rose-400/20 hover:bg-rose-400/30 border border-rose-400/30 transition-colors flex items-center gap-1.5 shrink-0 active:scale-95"
                         >
                           <Play className="w-3.5 h-3.5 fill-current" />
                           <span>Play</span>

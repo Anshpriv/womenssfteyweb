@@ -36,12 +36,12 @@ export default function MediaModal({ media, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-[#0D0819] border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-purple-900/30">
+      <div className="relative w-full max-w-2xl bg-[#0D0819] border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-pink-200/30">
         
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-xl ${isVideo ? 'bg-purple-500/20 text-purple-400' : 'bg-amber-500/20 text-amber-400'}`}>
+            <div className={`p-2.5 rounded-xl ${isVideo ? 'bg-rose-400/20 text-pink-500' : 'bg-amber-500/20 text-amber-400'}`}>
               {isVideo ? <Video className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </div>
             <div>
@@ -52,6 +52,11 @@ export default function MediaModal({ media, onClose }) {
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                 Encrypted Vault Media
               </p>
+              {media.fileName && (
+                <p className="mt-1 max-w-[260px] truncate font-mono text-[10px] text-slate-500 sm:max-w-md" title={media.fileName}>
+                  {media.fileName}
+                </p>
+              )}
             </div>
           </div>
           <button 

@@ -193,7 +193,7 @@ export default function SafeZones({ user }) {
             onClick={() => setActiveTab('zones')}
             className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
               activeTab === 'zones'
-                ? 'bg-gradient-to-r from-[#FF5F8A] to-purple-600 text-white shadow-lg shadow-[#FF5F8A]/25 border border-white/20'
+                ? 'bg-gradient-to-r from-[#FF5F8A] to-rose-500 text-white shadow-lg shadow-[#FF5F8A]/25 border border-white/20'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -205,7 +205,7 @@ export default function SafeZones({ user }) {
             onClick={() => setActiveTab('alerts')}
             className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
               activeTab === 'alerts'
-                ? 'bg-gradient-to-r from-[#FF5F8A] to-purple-600 text-white shadow-lg shadow-purple-600/25 border border-white/20'
+                ? 'bg-gradient-to-r from-[#FF5F8A] to-rose-500 text-white shadow-lg shadow-rose-500/25 border border-white/20'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -229,7 +229,7 @@ export default function SafeZones({ user }) {
                 setEditingZone(null);
                 setIsModalOpen(true);
               }}
-              className="flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-xs text-white bg-gradient-to-r from-[#FF5F8A] via-pink-600 to-purple-600 hover:opacity-95 shadow-xl shadow-[#FF5F8A]/30 border border-white/20 transition-all active:scale-95 shrink-0"
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-xs text-white bg-gradient-to-r from-[#FF5F8A] via-pink-600 to-rose-500 hover:opacity-95 shadow-xl shadow-[#FF5F8A]/30 border border-white/20 transition-all active:scale-95 shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Create Safe Zone</span>
@@ -267,32 +267,31 @@ export default function SafeZones({ user }) {
               {safeZones.map((zone) => (
                 <div 
                   key={zone.id}
-                  className="glass-panel glass-panel-hover p-6 rounded-[28px] border border-white/10 space-y-5 relative overflow-hidden shadow-xl"
+                  className="group relative overflow-hidden rounded-[28px] border border-pink-100 bg-white p-5 shadow-[0_16px_44px_rgba(151,67,99,0.10)] transition-all hover:-translate-y-0.5 hover:border-pink-200 hover:shadow-[0_20px_50px_rgba(151,67,99,0.14)] sm:p-6"
                 >
+                  <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-pink-300 to-transparent" />
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3.5 overflow-hidden">
-                      <div className={`p-3 rounded-2xl shrink-0 ${
-                        zone.active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-slate-500 border border-white/10'
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${
+                        zone.active ? 'border-pink-100 bg-pink-50 text-pink-600' : 'border-slate-200 bg-slate-50 text-slate-400'
                       }`}>
-                        <MapPin className="w-5 h-5" />
+                        <MapPin className="h-5 w-5" />
                       </div>
                       <div className="overflow-hidden">
-                        <h4 className="text-base font-extrabold text-white truncate">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Safe zone</span>
+                        <h4 className="mt-0.5 truncate text-lg font-extrabold tracking-tight text-slate-900">
                           {zone.zoneName}
                         </h4>
-                        <span className="text-xs text-slate-400 font-mono">
-                          Boundary Radius: <strong className="text-white">{Math.round(zone.radius)} meters</strong>
-                        </span>
                       </div>
                     </div>
 
                     {/* Active Toggle Button */}
                     <button
                       onClick={() => handleToggleActive(zone.id, zone.active)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 ${
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all active:scale-95 ${
                         zone.active
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-white/5 text-slate-400 border border-white/10'
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100'
                       }`}
                     >
                       {zone.active ? (
@@ -309,28 +308,34 @@ export default function SafeZones({ user }) {
                     </button>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-[#090A18]/80 border border-white/10 text-xs font-mono text-slate-400 flex items-center justify-between">
-                    <span>GPS Center</span>
-                    <span className="text-white font-medium">
-                      {zone.latitude?.toFixed(4)}, {zone.longitude?.toFixed(4)}
-                    </span>
+                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-pink-100 bg-pink-50/55 px-4 py-3.5">
+                      <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Boundary radius</span>
+                      <span className="mt-1 block text-sm font-extrabold text-slate-800">{Math.round(zone.radius)} meters</span>
+                    </div>
+                    <div className="rounded-2xl border border-pink-100 bg-pink-50/55 px-4 py-3.5">
+                      <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">GPS center</span>
+                      <span className="mt-1 block truncate font-mono text-xs font-medium text-slate-700">
+                        {zone.latitude?.toFixed(4)}, {zone.longitude?.toFixed(4)}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                  <div className="mt-4 grid grid-cols-2 gap-2 border-t border-pink-100 pt-4">
                     <button
                       onClick={() => {
                         setEditingZone(zone);
                         setIsModalOpen(true);
                       }}
-                      className="px-3 py-1.5 rounded-xl text-sky-400 hover:bg-sky-500/20 transition-colors flex items-center gap-1.5 text-xs font-bold active:scale-95"
+                      className="flex items-center justify-center gap-2 rounded-xl border border-pink-100 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 transition-all hover:border-pink-200 hover:bg-pink-50 hover:text-pink-700 active:scale-[0.98]"
                     >
                       <Edit3 className="w-4 h-4" />
                       <span>Edit</span>
                     </button>
                     <button
                       onClick={() => handleDeleteZone(zone.id)}
-                      className="px-3 py-1.5 rounded-xl text-rose-400 hover:bg-rose-500/20 transition-colors flex items-center gap-1.5 text-xs font-bold active:scale-95"
+                      className="flex items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-3 py-2.5 text-xs font-bold text-rose-600 transition-all hover:border-rose-200 hover:bg-rose-50 active:scale-[0.98]"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>Delete</span>
@@ -388,7 +393,7 @@ export default function SafeZones({ user }) {
           {/* Alert Stream Feed */}
           {alertsLoading ? (
             <div className="py-16 text-center text-slate-400 text-xs flex flex-col items-center gap-3">
-              <div className="w-7 h-7 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-7 h-7 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
               <span>Streaming boundary alert logs...</span>
             </div>
           ) : boundaryAlerts.length === 0 ? (
@@ -435,7 +440,7 @@ export default function SafeZones({ user }) {
                             url: alert.downloadUrl || alert.recordingUrl,
                             timeText: formatTimestamp(alert.timestamp)
                           })}
-                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 transition-colors flex items-center gap-1.5 active:scale-95"
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-pink-600 bg-rose-400/20 hover:bg-rose-400/30 border border-rose-400/30 transition-colors flex items-center gap-1.5 active:scale-95"
                         >
                           <Play className="w-3.5 h-3.5 fill-current" />
                           <span>Video</span>
