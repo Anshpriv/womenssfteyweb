@@ -24,16 +24,12 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4 text-white relative overflow-hidden">
+      <div className="min-h-screen bg-[#fff9fb] flex flex-col items-center justify-center gap-4 text-slate-800 relative overflow-hidden">
         <ShaderBackground />
-        {/* Background Ambient Orbs */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#FF5F8A]/20 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-600/20 rounded-full blur-[100px] pointer-events-none" />
-
-        <div className="relative p-5 rounded-full bg-gradient-to-br from-[#FF5F8A] to-purple-600 shadow-2xl shadow-[#FF5F8A]/40 z-10 animate-bounce">
+        <div className="relative p-5 rounded-full bg-gradient-to-br from-[#f45b8d] to-[#db3f75] shadow-xl shadow-pink-200/70 z-10">
           <Shield className="w-9 h-9 text-white" />
         </div>
-        <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-300 z-10 tracking-wide">
+        <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-600 z-10 tracking-wide">
           <Loader2 className="w-4 h-4 animate-spin text-[#FF5F8A]" />
           <span>Initializing Guardian Sentinel System...</span>
         </div>
@@ -43,7 +39,7 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="relative min-h-screen overflow-hidden bg-black">
+      <div className="light-guardian-theme relative min-h-screen overflow-hidden bg-[#fff9fb] text-slate-800">
         <ShaderBackground />
         <Login />
       </div>
@@ -51,13 +47,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-x-hidden selection:bg-[#FF5F8A] selection:text-white flex flex-col">
+    <div className="light-guardian-theme min-h-screen bg-[#fff9fb] text-slate-800 relative overflow-x-hidden selection:bg-[#f45b8d] selection:text-white flex flex-col">
       <ShaderBackground />
-      
-      {/* Background Glowing Ambient Orbs */}
-      <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#FF5F8A]/15 rounded-full blur-[150px] pointer-events-none z-0 animate-pulse-slow" />
-      <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-purple-600/15 rounded-full blur-[180px] pointer-events-none z-0 animate-pulse-slow" />
-      <div className="fixed top-[40%] right-[15%] w-[400px] h-[400px] bg-emerald-500/10 rounded-full blur-[160px] pointer-events-none z-0" />
 
       {/* Header / Navbar */}
       <Navbar 
@@ -67,7 +58,7 @@ export default function App() {
       />
 
       {/* Main Body View */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 pt-24 sm:pt-28 relative z-10">
         <AnimatePresence mode="wait">
           {currentRoute === 'dashboard' ? (
             <motion.div
@@ -94,15 +85,24 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full py-6 border-t border-white/10 bg-black/35 backdrop-blur-2xl relative z-10 text-center text-xs text-slate-300 font-medium">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-bold tracking-wider text-white">SHRIMATI SETU SENTINEL ENGINE v2.5</span>
+      {currentRoute !== 'safe-zones' && (
+        <footer className="relative z-10 w-full px-4 pb-5 pt-2 sm:px-6 sm:pb-7">
+          <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 rounded-3xl border border-pink-100 bg-white/80 px-5 py-5 shadow-[0_14px_40px_rgba(151,67,99,0.10)] backdrop-blur-xl sm:flex-row sm:px-7">
+            <div className="flex items-center gap-3 text-left">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-pink-50 text-pink-600 ring-1 ring-pink-100">
+                <Shield className="h-5 w-5" />
+              </span>
+              <span>
+                <span className="block text-sm font-extrabold tracking-tight text-slate-900">Shrimati Setu</span>
+                <span className="mt-0.5 block text-[11px] font-medium text-slate-500">Safety, connection and confidence.</span>
+              </span>
+            </div>
+            <p className="text-center text-[11px] font-medium text-slate-500 sm:text-right">
+              © {new Date().getFullYear()} Shrimati Setu. Guardian Emergency Console.
+            </p>
           </div>
-          <p>© {new Date().getFullYear()} Shrimati Setu Real-time Emergency SOS & Telemetry Console</p>
-        </div>
-      </footer>
+        </footer>
+      )}
 
     </div>
   );

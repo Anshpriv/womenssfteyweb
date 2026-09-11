@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, LogOut, Navigation, Radio, Activity, Sparkles } from 'lucide-react';
+import { Shield, LogOut, Navigation, Radio } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 
@@ -13,27 +13,22 @@ export default function Navbar({ currentRoute, setRoute, user }) {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-2xl bg-black/35 border-b border-white/10 shadow-2xl shadow-black/45 transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-3">
+    <header className="fixed inset-x-0 top-3 sm:top-4 z-40 px-3 sm:px-6 pointer-events-none">
+      <div className="max-w-6xl mx-auto px-3 sm:px-5 h-16 flex items-center justify-between gap-2 rounded-full border border-pink-200/70 bg-white/55 backdrop-blur-2xl shadow-lg shadow-pink-200/30 transition-all pointer-events-auto">
         
         {/* Brand Header */}
         <div 
           onClick={() => setRoute('dashboard')}
           className="flex items-center gap-3 cursor-pointer group shrink-0"
         >
-          <div className="relative p-2.5 rounded-2xl bg-gradient-to-br from-[#FF5F8A] via-pink-600 to-purple-600 shadow-lg shadow-[#FF5F8A]/30 group-hover:scale-105 group-hover:shadow-[#FF5F8A]/50 transition-all duration-300">
+          <div className="relative p-2.5 rounded-2xl bg-gradient-to-br from-[#FF5F8A] via-pink-600 to-rose-500 shadow-lg shadow-[#FF5F8A]/30 group-hover:scale-105 group-hover:shadow-[#FF5F8A]/50 transition-all duration-300">
             <Shield className="w-5 h-5 text-white" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full ring-2 ring-[#090A18] animate-ping" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-extrabold tracking-wide text-white group-hover:text-cyan-200 transition-colors">
+            <div className="flex items-center">
+              <h1 className="text-base sm:text-lg font-extrabold tracking-wide text-white group-hover:text-pink-200 transition-colors">
                 Shrimati Setu
               </h1>
-              <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-bold tracking-wider text-cyan-100 bg-cyan-400/10 border border-cyan-300/30 rounded-full flex items-center gap-1.5 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                SENTINEL ACTIVE
-              </span>
             </div>
             <p className="text-[9px] sm:text-[10px] font-bold tracking-widest text-slate-400 uppercase hidden xs:block">
               Guardian Emergency Console
@@ -45,18 +40,12 @@ export default function Navbar({ currentRoute, setRoute, user }) {
         {user && (
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             
-            {/* System Status indicator */}
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-slate-300">
-              <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-              <span>SATELLITE SYNC OK</span>
-            </div>
-
             {/* Overview Tab */}
             <button
               onClick={() => setRoute('dashboard')}
               className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
                 currentRoute === 'dashboard'
-                  ? 'bg-gradient-to-r from-[#FF5F8A] to-purple-600 text-white shadow-lg shadow-[#FF5F8A]/25 border border-white/20'
+                  ? 'bg-gradient-to-r from-[#FF5F8A] to-rose-500 text-white shadow-lg shadow-[#FF5F8A]/25 border border-white/20'
                   : 'text-slate-300 hover:text-white hover:bg-white/10 border border-transparent'
               }`}
             >
@@ -69,11 +58,11 @@ export default function Navbar({ currentRoute, setRoute, user }) {
               onClick={() => setRoute('safe-zones')}
               className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
                 currentRoute === 'safe-zones'
-                  ? 'bg-gradient-to-r from-purple-600 to-[#FF5F8A] text-white shadow-lg shadow-purple-600/25 border border-white/20'
+                  ? 'bg-gradient-to-r from-rose-500 to-[#FF5F8A] text-white shadow-lg shadow-rose-500/25 border border-white/20'
                   : 'text-slate-300 hover:text-white hover:bg-white/10 border border-transparent'
               }`}
             >
-              <Navigation className={`w-4 h-4 ${currentRoute === 'safe-zones' ? 'text-white' : 'text-purple-400'}`} />
+              <Navigation className={`w-4 h-4 ${currentRoute === 'safe-zones' ? 'text-white' : 'text-pink-500'}`} />
               <span className="inline">Safe Zones</span>
             </button>
 
