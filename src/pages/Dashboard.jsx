@@ -66,11 +66,44 @@ function FocusLiveLocation({ lat, lng, enabled }) {
   return null;
 }
 
+const getLocationCoordinates = (location) => {
+  const latitude = Number(
+    location?.latitude ??
+    location?.lat ??
+    location?.location?.latitude ??
+    location?.location?.lat
+  );
+  const longitude = Number(
+    location?.longitude ??
+    location?.lng ??
+    location?.location?.longitude ??
+    location?.location?.lng
+  );
+
+  return {
+    latitude,
+    longitude,
+    isValid: Number.isFinite(latitude) && Number.isFinite(longitude),
+  };
+};
+
+const getLocationTimestamp = (location) => {
+  const value = location?.updatedAt ?? location?.timestamp ?? location?.time ?? location?.createdAt;
+  if (!value) return 0;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  if (typeof value.seconds === 'number') return value.seconds * 1000;
+
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
 export default function Dashboard({ user }) {
   const [userData, setUserData] = useState(null);
   const [sosEvent, setSosEvent] = useState(null);
   const [sosLoading, setSosLoading] = useState(true);
   const [liveLocation, setLiveLocation] = useState(null);
+  const [deviceLocation, setDeviceLocation] = useState(null);
   const [recordings, setRecordings] = useState([]);
   const [recordingsLoading, setRecordingsLoading] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState(null);
@@ -94,25 +127,98 @@ export default function Dashboard({ user }) {
     return () => unsub();
   }, [user]);
 
-  // Listen to Real-Time Live Location (liveLocations/{userId} or users/{userId}/live_location)
+  // Read the existing phone-location feeds without writing or changing their schema.
   useEffect(() => {
     if (!user?.uid) return;
-    const liveLocRef = doc(db, 'liveLocations', user.uid);
-    const unsub = onSnapshot(liveLocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setLiveLocation(snapshot.data());
-      } else {
-        // Fallback to subcollection users/{userId}/live_location
-        const subLocRef = doc(db, 'users', user.uid, 'live_location', 'current');
-        onSnapshot(subLocRef, (subSnap) => {
-          if (subSnap.exists()) setLiveLocation(subSnap.data());
+
+    setLiveLocation(null);
+
+    const locationCandidates = new Map();
+    const sourcePriority = {
+      userLiveLocation: 4,
+      userLocationHistory: 3,
+      liveLocationDocument: 1,
+    };
+
+    const publishLatestLocation = () => {
+      const latest = [...locationCandidates.values()]
+        .filter(({ data }) => getLocationCoordinates(data).isValid)
+        .sort((a, b) => {
+          const timeDifference = getLocationTimestamp(b.data) - getLocationTimestamp(a.data);
+          return timeDifference || b.priority - a.priority;
+        })[0];
+
+      setLiveLocation(latest?.data ?? null);
+    };
+
+    const updateSource = (source, data) => {
+      if (data) {
+        locationCandidates.set(source, {
+          data,
+          priority: sourcePriority[source] ?? 0,
         });
+      } else {
+        locationCandidates.delete(source);
       }
-    }, (err) => {
-      console.error("Live location snapshot error:", err);
-    });
-    return () => unsub();
+      publishLatestLocation();
+    };
+
+    const newestLocationFrom = (snapshot) => snapshot.docs
+      .map((locationDoc) => ({ id: locationDoc.id, ...locationDoc.data() }))
+      .filter((location) => getLocationCoordinates(location).isValid)
+      .sort((a, b) => getLocationTimestamp(b) - getLocationTimestamp(a))[0] ?? null;
+
+    const unsubscribers = [
+      onSnapshot(
+        doc(db, 'liveLocations', user.uid),
+        (snapshot) => updateSource('liveLocationDocument', snapshot.exists() ? snapshot.data() : null),
+        (error) => console.warn('Live location document unavailable:', error)
+      ),
+      onSnapshot(
+        doc(db, 'users', user.uid, 'live_location', 'current'),
+        (snapshot) => updateSource('userLiveLocation', snapshot.exists() ? snapshot.data() : null),
+        (error) => console.warn('User live-location feed unavailable:', error)
+      ),
+      onSnapshot(
+        query(
+          collection(db, 'users', user.uid, 'locationHistory'),
+          orderBy('timestamp', 'desc'),
+          limit(1)
+        ),
+        (snapshot) => updateSource('userLocationHistory', newestLocationFrom(snapshot)),
+        (error) => console.warn('User location history unavailable:', error)
+      ),
+    ];
+
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [user]);
+
+  // Use the GPS of the device currently signed in to the dashboard.
+  useEffect(() => {
+    if (!user?.uid || !navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setDeviceLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          updatedAt: position.timestamp,
+        });
+      },
+      (error) => {
+        console.warn('Device location unavailable:', error.message);
+        setDeviceLocation(null);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 15000,
+      }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [user?.uid]);
 
   // Listen to Latest SOS Event (sosEvents/{sosId} or users/{userId}/sos_events)
   useEffect(() => {
@@ -199,10 +305,14 @@ export default function Dashboard({ user }) {
     return String(ts);
   };
 
-  // Determine current coordinates
-  const lat = liveLocation?.latitude ?? liveLocation?.lat ?? sosEvent?.latitude ?? sosEvent?.lat ?? 18.5204;
-  const lng = liveLocation?.longitude ?? liveLocation?.lng ?? sosEvent?.longitude ?? sosEvent?.lng ?? 73.8567;
-  const hasValidLocation = (liveLocation?.latitude != null || liveLocation?.lat != null || sosEvent?.latitude != null || sosEvent?.lat != null);
+  // Only phone telemetry is presented as a live location. SOS/default coordinates are not live data.
+  const latestPhoneLocation = [deviceLocation, liveLocation, userData?.lastKnownLocation]
+    .filter((location) => getLocationCoordinates(location).isValid)
+    .sort((a, b) => getLocationTimestamp(b) - getLocationTimestamp(a))[0] ?? null;
+  const liveCoordinates = getLocationCoordinates(latestPhoneLocation);
+  const lat = liveCoordinates.latitude;
+  const lng = liveCoordinates.longitude;
+  const hasValidLocation = liveCoordinates.isValid;
 
   const copyCoordinates = () => {
     if (hasValidLocation) {
@@ -471,43 +581,53 @@ export default function Dashboard({ user }) {
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-pink-50 text-pink-600">
               <MapPin className="h-3.5 w-3.5" />
             </span>
-            <span>Tracking live</span>
+            <span>{hasValidLocation ? 'Phone location connected' : 'Waiting for phone'}</span>
           </div>
         </div>
 
         {/* Leaflet Map Embed */}
         <div className="h-80 sm:h-96 w-full rounded-2xl overflow-hidden border border-white/10 relative shadow-inner z-0">
-          <MapContainer 
-            center={[lat, lng]} 
-            zoom={14} 
-            scrollWheelZoom={false}
-            zoomAnimation={true}
-            className="h-full w-full"
-          >
-            <FocusLiveLocation lat={lat} lng={lng} enabled={hasValidLocation} />
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <Marker position={[lat, lng]} icon={createPulseIcon()}>
-              <Popup>
-                <div className="text-xs font-sans space-y-1 p-1">
-                  <strong className="block text-[#FF5F8A] font-bold">{displayName}</strong>
-                  <span>Coordinates: {lat.toFixed(5)}, {lng.toFixed(5)}</span>
-                </div>
-              </Popup>
-            </Marker>
-            <Circle 
-              center={[lat, lng]} 
-              radius={350}
-              pathOptions={{
-                color: '#FF5F8A',
-                fillColor: '#FF5F8A',
-                fillOpacity: 0.15,
-                weight: 2
-              }}
-            />
-          </MapContainer>
+          {hasValidLocation ? (
+            <MapContainer
+              center={[lat, lng]}
+              zoom={14}
+              scrollWheelZoom={false}
+              zoomAnimation={true}
+              className="h-full w-full"
+            >
+              <FocusLiveLocation lat={lat} lng={lng} enabled={hasValidLocation} />
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <Marker position={[lat, lng]} icon={createPulseIcon()}>
+                <Popup>
+                  <div className="text-xs font-sans space-y-1 p-1">
+                    <strong className="block text-[#FF5F8A] font-bold">{displayName}</strong>
+                    <span>Coordinates: {lat.toFixed(5)}, {lng.toFixed(5)}</span>
+                  </div>
+                </Popup>
+              </Marker>
+              <Circle
+                center={[lat, lng]}
+                radius={350}
+                pathOptions={{
+                  color: '#FF5F8A',
+                  fillColor: '#FF5F8A',
+                  fillOpacity: 0.15,
+                  weight: 2
+                }}
+              />
+            </MapContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center bg-white/80 px-6 text-center">
+              <div>
+                <MapPin className="mx-auto mb-3 h-7 w-7 text-pink-500" />
+                <p className="text-sm font-bold text-slate-800">Waiting for phone location</p>
+                <p className="mt-1 text-xs text-slate-500">The map will appear when live GPS telemetry is received.</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
