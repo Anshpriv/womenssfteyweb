@@ -38,18 +38,18 @@ interface SignInPageProps {
 // --- SUB-COMPONENTS ---
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm transition-colors focus-within:border-violet-400/70 focus-within:bg-violet-500/10">
+  <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm transition-colors focus-within:border-pink-500/70 focus-within:bg-pink-400/10">
     {children}
   </div>
 );
 
 const TestimonialCard = ({ testimonial, delay }: { testimonial: Testimonial, delay: string }) => (
-  <div className={`animate-testimonial ${delay} flex w-[300px] shrink-0 items-start gap-3 rounded-2xl border border-white/15 bg-[#090A18]/70 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl`}>
+  <div className={`animate-testimonial ${delay} flex w-[300px] shrink-0 items-start gap-3 rounded-2xl border border-pink-100 bg-white/95 p-4 shadow-lg shadow-pink-200/35 backdrop-blur-xl`}>
     <img src={testimonial.avatarSrc} className="h-11 w-11 shrink-0 rounded-2xl object-cover" alt={`${testimonial.name} avatar`} />
     <div className="min-w-0 text-sm leading-snug">
-      <p className="flex items-center gap-1 font-medium text-white">{testimonial.name}</p>
-      <p className="text-slate-400 text-xs">{testimonial.handle}</p>
-      <p className="mt-2 text-xs leading-relaxed text-slate-200">{testimonial.text}</p>
+      <p className="flex items-center gap-1 font-semibold text-slate-900">{testimonial.name}</p>
+      <p className="text-pink-600 text-xs font-medium">{testimonial.handle}</p>
+      <p className="mt-2 text-xs leading-relaxed text-slate-600">{testimonial.text}</p>
     </div>
   </div>
 );
@@ -110,22 +110,17 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
               <div className="animate-element animate-delay-600 flex items-center justify-between text-sm">
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" name="rememberMe" className="custom-checkbox rounded border-white/20 bg-white/5 text-purple-600 focus:ring-purple-500" />
+                  <input type="checkbox" name="rememberMe" className="custom-checkbox rounded border-white/20 bg-white/5 text-rose-500 focus:ring-rose-400" />
                   <span className="text-slate-300">Keep me signed in</span>
                 </label>
-                <a href="#" onClick={(e) => { e.preventDefault(); onResetPassword?.(); }} className="hover:underline text-purple-400 transition-colors">Reset password</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); onResetPassword?.(); }} className="hover:underline text-pink-500 transition-colors">Reset password</a>
               </div>
 
-              <button type="submit" disabled={isLoading} className="animate-element animate-delay-700 w-full rounded-2xl bg-gradient-to-r from-[#FF5F8A] to-purple-600 py-3.5 font-medium text-white hover:opacity-90 transition-all shadow-lg shadow-[#FF5F8A]/25 border border-white/20 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2">
+              <button type="submit" disabled={isLoading} className="animate-element animate-delay-700 w-full rounded-2xl bg-gradient-to-r from-[#FF5F8A] to-rose-500 py-3.5 font-medium text-white hover:opacity-90 transition-all shadow-lg shadow-[#FF5F8A]/25 border border-white/20 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2">
                 {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}
                 {isLoading ? "Signing in..." : submitLabel}
               </button>
             </form>
-
-            <div className="animate-element animate-delay-800 relative flex items-center justify-center">
-              <span className="w-full border-t border-white/10"></span>
-              <span className="absolute bg-black/45 px-4 text-sm text-slate-300 backdrop-blur-sm">Or continue with</span>
-            </div>
 
             <button type="button" onClick={onGoogleSignIn} disabled={isLoading} className="animate-element animate-delay-900 w-full flex items-center justify-center gap-3 border border-white/10 rounded-2xl py-3.5 hover:bg-white/5 transition-colors text-white font-medium disabled:cursor-not-allowed disabled:opacity-60">
                 <GoogleIcon />
@@ -133,7 +128,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
             </button>
 
             <p className="animate-element animate-delay-1000 text-center text-sm text-slate-400">
-              New to our platform? <a href="#" onClick={(e) => { e.preventDefault(); onCreateAccount?.(); }} className="text-purple-400 hover:underline transition-colors">Create Account</a>
+              New to our platform? <a href="#" onClick={(e) => { e.preventDefault(); onCreateAccount?.(); }} className="text-pink-500 hover:underline transition-colors">Create Account</a>
             </p>
           </div>
         </div>
@@ -143,53 +138,50 @@ export const SignInPage: React.FC<SignInPageProps> = ({
       {(heroImageSrc || testimonials.length > 0) && (
         <section className="hidden min-w-0 p-4 md:flex">
           <div
-            className="flowing-gradient-panel relative flex h-full min-h-[calc(100vh-2rem)] w-full overflow-hidden rounded-3xl border border-white/10"
+            className="flowing-gradient-panel relative flex h-full min-h-[calc(100vh-2rem)] w-full overflow-hidden rounded-3xl border border-pink-100 bg-white shadow-[0_24px_70px_rgba(171,72,110,0.16)]"
             style={{ '--hero-image': heroImageSrc ? `url(${heroImageSrc})` : 'none' } as React.CSSProperties}
           >
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(3,3,10,0.2),rgba(3,3,10,0.62))]" />
+            <div className="absolute inset-0 bg-white/48" />
 
             <div className="relative z-10 flex h-full w-full flex-col justify-between gap-8 p-6 lg:p-8">
-              <div className="max-w-xl rounded-3xl border border-white/15 bg-[#080715]/55 p-5 shadow-2xl shadow-black/25 backdrop-blur-xl">
+              <div className="max-w-xl rounded-3xl border border-pink-100 bg-white/90 p-5 shadow-xl shadow-pink-200/35 backdrop-blur-xl">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-white shadow-lg">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-pink-100 bg-pink-50 text-pink-600 shadow-sm">
                       <ShieldCheck className="h-6 w-6" />
                     </span>
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.24em] text-pink-100/80">Live guardian layer</p>
-                      <h2 className="mt-1 text-2xl font-semibold leading-tight text-white lg:text-3xl">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-pink-600">Live guardian layer</p>
+                      <h2 className="mt-1 text-2xl font-bold leading-tight text-slate-900 lg:text-3xl">
                         Real-time SOS visibility across India
                       </h2>
                     </div>
                   </div>
-                  <span className="hidden rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-xs font-bold text-emerald-100 lg:inline-flex">
-                    ACTIVE
-                  </span>
                 </div>
                 <div className="mt-5 grid grid-cols-3 gap-3">
-                  <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
-                    <Radio className="mb-3 h-4 w-4 text-pink-100" />
-                    <p className="text-lg font-semibold text-white">24/7</p>
-                    <p className="text-[11px] font-medium text-slate-200">SOS desk</p>
+                  <div className="rounded-2xl border border-pink-100 bg-white/90 p-3 shadow-sm">
+                    <Radio className="mb-3 h-4 w-4 text-pink-600" />
+                    <p className="text-lg font-bold text-slate-900">24/7</p>
+                    <p className="text-[11px] font-medium text-slate-600">SOS desk</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
-                    <MapPin className="mb-3 h-4 w-4 text-cyan-100" />
-                    <p className="text-lg font-semibold text-white">Live</p>
-                    <p className="text-[11px] font-medium text-slate-200">GPS sync</p>
+                  <div className="rounded-2xl border border-pink-100 bg-white/90 p-3 shadow-sm">
+                    <MapPin className="mb-3 h-4 w-4 text-pink-600" />
+                    <p className="text-lg font-bold text-slate-900">Live</p>
+                    <p className="text-[11px] font-medium text-slate-600">GPS sync</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
-                    <ShieldCheck className="mb-3 h-4 w-4 text-amber-100" />
-                    <p className="text-lg font-semibold text-white">Safe</p>
-                    <p className="text-[11px] font-medium text-slate-200">Media vault</p>
+                  <div className="rounded-2xl border border-pink-100 bg-white/90 p-3 shadow-sm">
+                    <ShieldCheck className="mb-3 h-4 w-4 text-pink-600" />
+                    <p className="text-lg font-bold text-slate-900">Safe</p>
+                    <p className="text-[11px] font-medium text-slate-600">Media vault</p>
                   </div>
                 </div>
               </div>
 
               {testimonials.length > 0 && (
                 <div className="space-y-4">
-                  <div className="max-w-lg">
-                    <p className="text-xs font-bold uppercase tracking-[0.28em] text-pink-100/80">Guardian feedback</p>
-                    <h3 className="mt-2 text-2xl font-semibold leading-tight text-white lg:text-3xl">
+                  <div className="max-w-lg rounded-2xl border border-pink-100 bg-white/85 p-4 shadow-sm backdrop-blur-md">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-pink-600">Guardian feedback</p>
+                    <h3 className="mt-2 text-2xl font-bold leading-tight text-slate-900 lg:text-3xl">
                       Trusted by women-led safety teams
                     </h3>
                   </div>

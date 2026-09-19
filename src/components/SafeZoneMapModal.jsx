@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   MapContainer, 
   TileLayer, 
@@ -39,6 +39,11 @@ export default function SafeZoneMapModal({ initialData, onSave, onClose }) {
   const [radius, setRadius] = useState(initialData?.radius || 1000);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    document.body.classList.add('safe-zone-editor-open');
+    return () => document.body.classList.remove('safe-zone-editor-open');
+  }, []);
+
   const handleSave = () => {
     if (!zoneName.trim()) {
       setError('Please enter a zone name (e.g. Home, College)');
@@ -57,8 +62,8 @@ export default function SafeZoneMapModal({ initialData, onSave, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-4xl bg-white/95 border border-slate-200 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+    <div className="safe-zone-map-modal fixed inset-0 z-50 flex items-center justify-center bg-[#fff9fb]/96 p-2 backdrop-blur-md sm:p-4">
+      <div className="relative flex h-[92dvh] max-h-[920px] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-pink-100 bg-white/95 shadow-[0_28px_90px_rgba(92,48,70,0.20)] sm:rounded-3xl">
         
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 bg-slate-50/80">
@@ -107,7 +112,7 @@ export default function SafeZoneMapModal({ initialData, onSave, onClose }) {
           <div>
             <div className="flex justify-between items-center mb-1.5">
               <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                <Sliders className="w-3.5 h-3.5 text-purple-600" />
+                <Sliders className="w-3.5 h-3.5 text-rose-500" />
                 Boundary Radius
               </label>
               <span className="text-sm font-bold text-[#FF5F8A]">
@@ -133,12 +138,12 @@ export default function SafeZoneMapModal({ initialData, onSave, onClose }) {
         )}
 
         {/* Leaflet Interactive Map View */}
-        <div className="relative flex-1 min-h-[300px] sm:min-h-[380px] w-full">
+        <div className="relative min-h-[240px] w-full flex-1 sm:min-h-[300px] lg:min-h-0">
           <MapContainer
             center={position}
             zoom={14}
             scrollWheelZoom={true}
-            style={{ width: '100%', height: '100%', minHeight: '300px' }}
+            style={{ width: '100%', height: '100%' }}
             className="dark-tiles z-10"
           >
             <TileLayer

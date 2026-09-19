@@ -144,7 +144,7 @@ export default function Login() {
     <SignInPage
       title={
         <span className="flex flex-col gap-3">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-br from-[#FF5F8A] to-purple-600 shadow-xl shadow-[#FF5F8A]/30">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-br from-[#FF5F8A] to-rose-500 shadow-xl shadow-[#FF5F8A]/30">
             <Shield className="h-6 w-6 text-white" />
           </span>
           <span>
@@ -156,11 +156,11 @@ export default function Login() {
         </span>
       }
       description="Access real-time emergency SOS dispatch, live GPS telemetry, and encrypted media review."
-      heroImageSrc="/bg.png"
+      heroImageSrc="/guardian-dashboard-background.png"
       testimonials={testimonials}
       error={error}
       isLoading={loading}
-      submitLabel="Launch Sentinel Console"
+      submitLabel="Login"
       onSignIn={handleLogin}
       onGoogleSignIn={handleGoogleSignIn}
       onResetPassword={handleResetPassword}
