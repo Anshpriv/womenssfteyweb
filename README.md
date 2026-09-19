@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="./lib/mockup.png" alt="Shrimati Setu dashboard mockup" width="100%" />
+  <img src="web/mockup.png" alt="Shrimati Setu dashboard mockup" width="100%" />
 </p>
 
 <div align="center">
@@ -62,7 +62,7 @@ This dashboard gives them:
 ## System architecture
 
 <p align="center">
-  <img src="./lib/2f380280-e706-4aab-8d16-0004f529c493.png" alt="Shrimati Setu system architecture" width="100%" />
+  <img src="web/2f380280-e706-4aab-8d16-0004f529c493.png" alt="Shrimati Setu system architecture" width="100%" />
 </p>
 
 This architecture brings together the guardian-facing Flutter dashboard, Firebase services, real-time safety data, geofencing, and evidence storage into a single operational system. The flow is built around security, speed, and reliable monitoring for rapid guardian response.
