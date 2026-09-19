@@ -1,4 +1,6 @@
-# Shrimati Setu Guardian Dashboard
+<div align="center">
+  <h1>Shrimati Setu Guardian Dashboard</h1>
+</div>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Flutter-3.10+-blue?logo=flutter" alt="Flutter" />
@@ -7,16 +9,16 @@
   <img src="https://img.shields.io/badge/Mode-Real-time%20Safety-purple" alt="Mode" />
 </p>
 
+<p align="center">
+  <img src="./lib/mockup.png" alt="Shrimati Setu dashboard mockup" width="100%" />
+</p>
+
 <div align="center">
   <h3>Built for guardians who cannot afford delays.</h3>
 </div>
 
 <p align="center">
   <b>Shrimati Setu Guardian Dashboard</b> is a real-time protection platform for guardians, designed to keep them aware, informed, and ready to respond when safety conditions change.
-</p>
-
-<p align="center">
-  <img src="./lib/mockup.png" alt="Shrimati Setu dashboard mockup" width="100%" />
 </p>
 
 ---
