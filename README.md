@@ -4,29 +4,38 @@
   <img src="https://img.shields.io/badge/Flutter-3.10+-blue?logo=flutter" alt="Flutter" />
   <img src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-orange" alt="Firebase" />
   <img src="https://img.shields.io/badge/Status-Guardian%20Console-success" alt="Status" />
+  <img src="https://img.shields.io/badge/Mode-Real-time%20Safety-purple" alt="Mode" />
 </p>
 
 <div align="center">
-  <h3>Safety intelligence for guardians, built around real-time protection.</h3>
+  <h3>Built for guardians who cannot afford delays.</h3>
 </div>
 
-Shrimati Setu Guardian Dashboard is a high-trust safety monitoring platform built for guardians who need to track, protect, and respond to a vulnerable person’s location and safety context in real time. It combines secure authentication, live SOS monitoring, geofenced safe-zone awareness, and evidence tracking in a clean, premium dashboard experience.
+<p align="center">
+  <b>Shrimati Setu Guardian Dashboard</b> is a high-trust safety intelligence platform designed to help guardians monitor, protect, and respond to a vulnerable person’s location and well-being in real time.
+</p>
 
-This is not a generic starter app — it reflects a real-world emergency-response and child/guardian protection workflow designed for high situational awareness.
+<p align="center">
+  It combines secure authentication, emergency SOS monitoring, geofenced safe-zone awareness, and evidence tracking into a premium command-center experience.
+</p>
+
+<p align="center">
+  <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80" alt="Safety dashboard hero" width="100%" />
+</p>
 
 ---
 
-## Why this exists
+## Why this project matters
 
-In safety-first systems, delays can be dangerous. Guardians need:
+When safety is on the line, every second counts. Guardians need:
 
-- instant awareness of emergency SOS events
-- visibility into live location and recent movement
-- defined safety boundaries and alerts when those boundaries are crossed
-- evidence-backed records such as recordings and activity logs
-- a reliable, secure control center to act quickly
+- instant SOS awareness
+- real-time visibility into movement and location
+- geofence alerts for boundaries and safe zones
+- a secure decision-making interface
+- evidence and activity records for faster action
 
-This dashboard is designed to be that control room.
+This dashboard turns those critical signals into a clear, usable control room.
 
 ---
 
@@ -34,11 +43,27 @@ This dashboard is designed to be that control room.
 
 The platform acts as the guardian-side command panel for the Shrimati Setu ecosystem:
 
-- monitor a user’s status in real time
-- receive SOS alerts and emergency triggers
-- validate safe-zone entry/exit events
-- manage geofencing rules and boundary alerts
-- review evidence and operational logs
+- monitor user status in real time
+- receive SOS and emergency alerts immediately
+- validate safe-zone entry and exit events
+- manage geofencing boundaries and jurisdiction rules
+- review activity history and media evidence
+
+---
+
+## At a glance
+
+<div align="center">
+
+| Capability | Impact |
+| --- | --- |
+| Real-time Guardian Console | Fast visibility into active safety conditions |
+| SOS Event Monitoring | Rapid emergency awareness and response |
+| Safe Zone Control | Protects boundaries across trusted locations |
+| Boundary Alerting | Detects risky entry and exit activity |
+| Evidence Tracking | Supports trust, accountability, and response |
+
+</div>
 
 ---
 
